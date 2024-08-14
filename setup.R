@@ -17,7 +17,8 @@ renv::install(c(
   "data.table", "RhpcBLASctl", "mlr3", "ggplot2", "DiceKriging", "batchtools",
   "mlr-org/mlr3pipelines", "mlr3learners", "mlr3mbo", "xgboost", "rpart", "R6", "checkmate", "testthat", "rgenoud",
   "RhpcBLASctl", "ranger",
-  "mlr-org/paradox"
+  "mlr-org/paradox",
+  "devtools"
 ))
 
 renv::snapshot()
