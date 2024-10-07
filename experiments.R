@@ -116,3 +116,35 @@ addExperiments(
 
 testJob(1, reg = regr2)
 
+
+
+
+################
+
+reg <- getRegistry("../registry_production", make.default = TRUE)
+
+reg$cluster.functions <- makeClusterFunctionsSocket(ncpus = 40)
+
+addProblemTaskGetter(reg)
+
+for (lname in names(list.learners.regr)) {
+  addAlgorithmPerfEvaluation(reg, lname)
+}
+
+addExperimentsPerfEvaluation(reg, "tree", 1, grid = FALSE, repls = 1)
+addExperimentsPerfEvaluation(reg, "xgb", 1, grid = FALSE, repls = 1)
+addExperimentsPerfEvaluation(reg, "glmnet", 1, grid = FALSE, repls = 1)
+addExperimentsPerfEvaluation(reg, "nnet", 1, grid = FALSE, repls = 1)
+
+getJobTable() |> unwrap()
+
+submitJobs()
+
+
+getStatus()
+
+getJobTable() |> unwrap()
+
+res <- reduceResultsList(findDone())
+
+res
