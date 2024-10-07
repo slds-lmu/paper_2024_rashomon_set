@@ -1,0 +1,50 @@
+
+rm(list = ls(all.names = TRUE))
+source("init.R")
+
+reg <- getRegistry("../registry_production", make.default = TRUE)
+
+reg$cluster.functions <- makeClusterFunctionsSocket(ncpus = 40)
+
+addProblemTaskGetter(reg)
+
+for (lname in names(list.learners.regr)) {
+  addAlgorithmPerfEvaluation(reg, lname)
+}
+
+# glmnet: 1e4, plus 1e2^2 grid --> 90 cpuh
+## 4e2 points per chunk
+addExperimentsPerfEvaluation(reg, "glmnet", 1e4, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "glmnet", 1e2, grid = TRUE)
+
+# tree: 1e4, plus 1e2^2 grid --> 40 cpuh
+## 4e2 points per chunk
+addExperimentsPerfEvaluation(reg, "tree", 1e4, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "tree", 1e2, grid = TRUE)
+
+# nnet: 2e4, plus 2 * 1e2^2 grid --> 2000 cpuh
+## size > 100: 1 point per chunk
+## size > 10: 50 points per chunk
+## size < 10: 500 points per chunk
+addExperimentsPerfEvaluation(reg, "nnet", 2e4, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "nnet", 1e2, grid = TRUE)
+
+
+# xgb: 5e5 points for 1e4 cpuh (x10 reps)
+## 5e1 points per chunk
+addExperimentsPerfEvaluation(reg, "xgb", 5e5, grid = FALSE)
+
+
+
+getJobTable() |> unwrap()
+
+submitJobs()
+
+
+getStatus()
+
+getJobTable() |> unwrap()
+
+res <- reduceResultsList(findDone())
+
+res
