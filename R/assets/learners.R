@@ -47,7 +47,7 @@ learner.nnet.classif$param_set$set_values(
   maxit = 5000,
   trace = FALSE,
   decay = to_tune(1e-6, 1, logscale = TRUE),
-  size = to_tune(2, 2^9, logscale = TRUE),
+  size = to_tune(8, 2^9, logscale = TRUE),
   skip = to_tune()
 )
 learner.nnet.classif$feature_types <- union(learner.nnet.classif$feature_types, "logical")
@@ -60,7 +60,7 @@ learner.nnet.regr$param_set$set_values(
   maxit = 5000,
   trace = FALSE,
   decay = to_tune(1e-6, 1, logscale = TRUE),
-  size = to_tune(2, 2^9, logscale = TRUE),
+  size = to_tune(8, 2^9, logscale = TRUE),
   skip = to_tune()
 )
 learner.nnet.regr$feature_types <- union(learner.nnet.regr$feature_types, "logical")

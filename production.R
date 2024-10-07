@@ -2,9 +2,7 @@
 rm(list = ls(all.names = TRUE))
 source("init.R")
 
-reg <- getRegistry("../registry_production", make.default = TRUE)
-
-reg$cluster.functions <- makeClusterFunctionsSocket(ncpus = 40)
+reg <- getRegistry("../registry_paper_2024_rashomon_set", make.default = TRUE)
 
 addProblemTaskGetter(reg)
 
@@ -13,13 +11,13 @@ for (lname in names(list.learners.regr)) {
 }
 
 # glmnet: 1e4, plus 1e2^2 grid --> 90 cpuh
-## 4e2 points per chunk
+## 1e3 points per chunk
 addExperimentsPerfEvaluation(reg, "glmnet", 1e4, grid = FALSE)
 addExperimentsPerfEvaluation(reg, "glmnet", 1e2, grid = TRUE)
 
 # tree: 1e4, plus 1e2^2 grid --> 40 cpuh
-## 4e2 points per chunk
-addExperimentsPerfEvaluation(reg, "tree", 1e4, grid = FALSE)
+## 1e3 points per chunk
+addExperimentsPerfEvaluation(reg, "tree", 1e6, grid = FALSE)
 addExperimentsPerfEvaluation(reg, "tree", 1e2, grid = TRUE)
 
 # nnet: 2e4, plus 2 * 1e2^2 grid --> 2000 cpuh
@@ -35,16 +33,17 @@ addExperimentsPerfEvaluation(reg, "nnet", 1e2, grid = TRUE)
 addExperimentsPerfEvaluation(reg, "xgb", 5e5, grid = FALSE)
 
 
+resources.default <- list(walltime = 48 * 3600, memory = 4000, ncpus = 1)
+# 1e3 points per chunk
 
-getJobTable() |> unwrap()
+tosubmit <- list(
+  findExperiments(algo.pattern = "^glmnet$|^tree$")[, chunk := chunk(job.id, chunk.size = 1e3)],
+  findExperiments(algo.name = "xgb")[, chunk := chunk(job.id, chunk.size = 5e1)],
+  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) > 100),  # no chunking
+  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) <= 100 & exp(nnet.size) > 10)[,
+    chunk := chunk(job.id, chunk.size = 5e1)],
+  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) <= 10)[,
+    chunk := chunk(job.id, chunk.size = 5e2)]
+)
 
-submitJobs()
-
-
-getStatus()
-
-getJobTable() |> unwrap()
-
-res <- reduceResultsList(findDone())
-
-res
+lapply(tosubmit, submitJobs, resources = resources.default)

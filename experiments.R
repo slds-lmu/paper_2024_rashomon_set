@@ -81,7 +81,7 @@ jt[, mean(as.numeric(time.running), na.rm = TRUE), by = c("taskname", "learnerna
 # around 1e6 pts per learner
 # glmnet: 1e4, plus 1e2^2 grid --> 90 cpuh
 ## 4e2 points per chunk
-# tree: 1e4, plus 1e2^2 grid --> 40 cpuh
+# tree: 1e6, plus 1e2^3 grid --> 4000 cpuh
 ## 4e2 points per chunk
 # nnet: 2e4, plus 2 * 1e2^2 grid --> 2000 cpuh
 ## size > 100: 1 point per chunk
@@ -122,6 +122,7 @@ testJob(1, reg = regr2)
 ################
 
 reg <- getRegistry("../registry_production", make.default = TRUE)
+reg$cluster.functions <- makeClusterFunctionsSocket(ncpus = 40)
 
 reg$cluster.functions <- makeClusterFunctionsSocket(ncpus = 40)
 
@@ -148,3 +149,29 @@ getJobTable() |> unwrap()
 res <- reduceResultsList(findDone())
 
 res
+
+
+
+# glmnet: 1e4, plus 1e2^2 grid --> 90 cpuh
+## 4e2 points per chunk
+addExperimentsPerfEvaluation(reg, "glmnet", 1e2, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "glmnet", 1e1, grid = TRUE)
+
+# tree: 1e4, plus 1e2^2 grid --> 40 cpuh
+## 4e2 points per chunk
+addExperimentsPerfEvaluation(reg, "tree", 1e2, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "tree", 1e1, grid = TRUE)
+
+# nnet: 2e4, plus 2 * 1e2^2 grid --> 2000 cpuh
+## size > 100: 1 point per chunk
+## size > 10: 50 points per chunk
+## size < 10: 500 points per chunk
+addExperimentsPerfEvaluation(reg, "nnet", 2e2, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "nnet", 1e1, grid = TRUE)
+
+
+# xgb: 5e5 points for 1e4 cpuh (x10 reps)
+## 5e1 points per chunk
+addExperimentsPerfEvaluation(reg, "xgb", 5e2, grid = FALSE)
+
+
