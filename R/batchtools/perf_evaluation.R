@@ -21,10 +21,13 @@ perf.evaluation.fun <- function(data, instance, job, ...) {
     data = as.data.table(hpvals),
     remove_dupl = FALSE
   )
-
-  learner$param_set$set_values(.values = design$transpose()[[1]])
+  hp.transposed <- design$transpose()[[1]]
+  learner$param_set$set_values(.values = hp.transposed)
   rr <- resample(instance, learner, resampling, store_backends = FALSE)
-  rr$aggregate(measure)
+  list(
+    result = rr$aggregate(measure),
+    config = hp.transposed
+  )
 }
 
 addProblemTaskGetter <- function(reg) {
