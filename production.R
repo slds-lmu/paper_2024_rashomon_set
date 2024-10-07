@@ -38,12 +38,12 @@ resources.default <- list(walltime = 48 * 3600, memory = 4000, ncpus = 1)
 
 tosubmit <- list(
   findExperiments(algo.pattern = "^glmnet$|^tree$")[, chunk := chunk(job.id, chunk.size = 1e3)],
-  findExperiments(algo.name = "xgb")[, chunk := chunk(job.id, chunk.size = 5e1)],
-  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) > 100),  # no chunking
-  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) <= 100 & exp(nnet.size) > 10)[,
-    chunk := chunk(job.id, chunk.size = 5e1)],
-  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) <= 10)[,
-    chunk := chunk(job.id, chunk.size = 5e2)]
+  findExperiments(algo.name = "xgb")[, chunk := chunk(job.id, chunk.size = 2e3)],
+  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) > 200),  # no chunking
+  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) <= 200 & exp(nnet.size) > 50)[,
+    chunk := chunk(job.id, chunk.size = 1e2)],
+  findExperiments(algo.name = "nnet", algo.pars = exp(nnet.size) <= 50)[,
+    chunk := chunk(job.id, chunk.size = 1e3)]
 )
 
 lapply(tosubmit, submitJobs, resources = resources.default)
