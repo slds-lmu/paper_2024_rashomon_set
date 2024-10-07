@@ -47,3 +47,8 @@ tosubmit <- list(
 )
 
 lapply(tosubmit, submitJobs, resources = resources.default)
+
+repeat {
+  getStatus()
+  Sys.sleep(10)
+}
