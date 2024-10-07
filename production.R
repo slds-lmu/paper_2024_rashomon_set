@@ -17,8 +17,8 @@ addExperimentsPerfEvaluation(reg, "glmnet", 1e2, grid = TRUE)
 
 # tree: 1e4, plus 1e2^2 grid --> 40 cpuh
 ## 1e3 points per chunk
-addExperimentsPerfEvaluation(reg, "tree", 1e6, grid = FALSE)
-addExperimentsPerfEvaluation(reg, "tree", 1e2, grid = TRUE)
+addExperimentsPerfEvaluation(reg, "tree", 8e3, grid = FALSE)
+addExperimentsPerfEvaluation(reg, "tree", 20, grid = TRUE)
 
 # nnet: 2e4, plus 2 * 1e2^2 grid --> 2000 cpuh
 ## size > 100: 1 point per chunk

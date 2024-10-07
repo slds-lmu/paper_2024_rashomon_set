@@ -29,8 +29,8 @@ learner.xgb.classif <- as_learner(po("encode", method = "treatment") %>>!%
 
 learner.tree.regr <- lrn("regr.rpart")
 learner.tree.regr$param_set$set_values(
-  minsplit = to_tune(2, 2^7, logscale = TRUE),
-  minbucket = to_tune(1, 2^6, logscale = TRUE),
+  minsplit = to_tune(2, 2^7),
+  minbucket = to_tune(1, 2^6),
   cp = to_tune(1e-4, .2, logscale = TRUE)
 )
 
