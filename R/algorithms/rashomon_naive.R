@@ -28,6 +28,7 @@ tuneRashomonNaive <- function(
   }
 
   tr$archive$benchmark_result$learners[keep, .(obj.vals, learner)]
+  tr
 }
 
 
