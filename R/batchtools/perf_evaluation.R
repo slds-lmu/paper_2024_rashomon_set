@@ -38,7 +38,6 @@ addAlgorithmPerfEvaluation <- function(reg, learnername) {
   addAlgorithm(learnername, fun = perf.evaluation.fun, reg = reg)
 }
 
-
 # resolution is per-HP if grid = TRUE, otherwise total number of random samples
 addExperimentsPerfEvaluation <- function(
     reg,
