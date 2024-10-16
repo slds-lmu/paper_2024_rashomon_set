@@ -1,14 +1,31 @@
 
 
-resampling.tuning.inner <- rsmp("cv", folds = 5)
+resampling.inner <- rsmp("cv", folds = 10)
+resampling.reps.inner <- 10
+
+measure.regr <- msr("regr.rmse")
+measure.classif <- msr("classif.bbrier")
 
 
-list.resampling.tuning.outer <- list(
-  repcv = rsmp("repeated_cv", folds = 3, repeats = 3),
-  cv = rsmp("cv", folds = 10)
+
+list.tasks <- list(
+  gc = task.gc,
+  cs = task.cs,
+  bs = task.bs
 )
 
-list.learners <- list(
-  learner.xgb = learner.xgb,
-  learner.tree = learner.tree
+
+list.learners.regr <- list(
+  xgb = learner.xgb.regr,
+  tree = learner.tree.regr,
+  nnet = learner.nnet.regr,
+  glmnet = learner.regr.glmnet
 )
+
+list.learners.classif <- list(
+  xgb = learner.xgb.classif,
+  tree = learner.tree.classif,
+  nnet = learner.nnet.classif,
+  glmnet = learner.classif.glmnet
+)
+

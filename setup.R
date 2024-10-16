@@ -15,10 +15,16 @@ renv::init(bare = TRUE)
 renv::settings$snapshot.type("all")
 renv::install(c(
   "data.table", "RhpcBLASctl", "mlr3", "ggplot2", "DiceKriging", "batchtools",
-  "mlr-org/mlr3pipelines", "mlr3learners", "mlr3mbo", "xgboost", "rpart", "R6", "checkmate", "testthat", "rgenoud",
+  "mlr3pipelines", "mlr3learners", "mlr3mbo", "xgboost", "rpart", "R6", "checkmate", "testthat", "rgenoud",
   "RhpcBLASctl", "ranger",
-  "mlr-org/paradox",
-  "devtools"
+  "paradox",
+  "devtools",
+  "mlr3fairness",
+  "languageserver",
+  "mlr3data",
+  "glmnet",
+  "snow",  # batchtools socket parallelization
+  "ggplot2"
 ))
 
 renv::snapshot()
