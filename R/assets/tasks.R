@@ -44,6 +44,6 @@ sample_synthetic_task <- function(n, seed = 1) {
   as_task_regr(data, target = "Y", id = "synthetic_task")
 }
 
-task.synth <- sample_synthetic_task(10000)
+task.st <- sample_synthetic_task(10000)
 
   
