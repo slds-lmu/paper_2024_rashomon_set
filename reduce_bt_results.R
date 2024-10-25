@@ -32,7 +32,7 @@ saveRDS(fulltable.tree, "data/rashomon.table.tree.rds")
 
 jt.xgb <- jt.all[algorithm == "xgb"]
 jt.xgb.unwrap <- unwrap(jt.xgb)
-results.xgb <- reduceResultsList(jt.xgb.unwrap$job.id)
+results.xgb <- reduceResultsList(jt.xgb.unwrap[is.na(error), job.id])
 results.xgb.table <- lapply(results.xgb, unlist, recursive = FALSE) |> rbindlist(fill = TRUE)
 fulltable.xgb <- cbind(jt.xgb.unwrap, results.xgb.table)
 collens <- sapply(fulltable.xgb, function(x) length(unique(x, useNA = "ifany")) == 1)
