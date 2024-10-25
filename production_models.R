@@ -27,7 +27,8 @@ reduceTables <- function(table, lname, params = NULL) {
       rmse = mean(result.regr.rmse),
       rmse.se = sd(result.regr.rmse),
       .N,
-      is.grid = FALSE
+      is.grid = all(is.grid),
+      is.in.grid = any(is.grid)
     ),
     by = bycols
   ]
@@ -53,18 +54,16 @@ sliceTables <- function(table, lname, params = NULL) {
   })
 }
 
-tglmnet[, is.grid := TRUE]
-tglmnet[seq_len(nrow(tglmnet) / 2), is.grid := FALSE]
+tglmnet[, is.grid := seq_len(.N) > nrow(.SD) / 2, by = taskname]
 reduced.glmnet <- reduceTables(tglmnet, "glmnet")
-
 sliced.glmnet <- sliceTables(tglmnet, "glmnet")
 
-ttree[, is.grid := TRUE]
-ttree[seq_len(nrow(ttree)/2), is.grid := FALSE]
 
+ttree[, is.grid := seq_len(.N) > nrow(.SD) / 2, by = taskname]
 reduced.tree <- reduceTables(ttree, "tree", params = c("cp", "minbucket", "minsplit"))
 sliced.tree <- sliceTables(ttree, "tree", params = c("cp", "minbucket", "minsplit"))
 
+txgb[, is.grid := FALSE]
 reduced.xgb <- reduceTables(txgb, "xgb")
 sliced.xgb <- sliceTables(txgb, "xgb")
 
