@@ -11,7 +11,8 @@ measure.classif <- msr("classif.bbrier")
 list.tasks <- list(
   gc = task.gc,
   cs = task.cs,
-  bs = task.bs
+  bs = task.bs,
+  st = task.st
 )
 
 
