@@ -74,7 +74,7 @@ reduced.tree[is.grid == FALSE, table(config.cp) |> length()]
 reduced.glmnet[is.grid == FALSE, table(config.glmnet.lambda) |> length()]
 reduced.glmnet[is.grid == TRUE, table(config.glmnet.lambda) |> length()]
 
-scores.used = c(gc = "bbrier", cs = "bbrier", bs = "rmse")
+scores.used = c(gc = "bbrier", cs = "bbrier", bs = "rmse", st = "rmse")
 
 allred <- list(
   xgb = reduced.xgb,
@@ -91,11 +91,16 @@ alltoeval <- sapply(names(allred), function(ln) {
 }, simplify = FALSE)
 
 torun.minima <- lapply(alltoeval, function(x) x[, .SD[which.min(score)], by = "taskname"])
+# torun.minima <- lapply(alltoeval, function(x) x[taskname %in% c("cs", "st"), .SD[which.min(score)], by = "taskname"])
 
+                       
+lapply(alltoeval, function(x) x[is.grid == FALSE, .(.SD[score <= min(score) * 1.05] |> nrow()), by = "taskname"])
 
 set.seed(1)
-torun.samples <- lapply(alltoeval, function(x) x[is.grid == FALSE, .SD[score <= min(score) * 1.05][sample(.N, 1000)], by = "taskname"])
+torun.samples <- lapply(alltoeval, function(x) x[is.grid == FALSE, .SD[score <= min(score) * 1.05][sample(.N, min(1000, .N))], by = "taskname"])
+# torun.samples <- lapply(alltoeval, function(x) x[is.grid == FALSE & taskname %in% c("cs", "st"), .SD[score <= min(score) * 1.05][sample(.N, min(1000, .N))], by = "taskname"])
 
+                        
 lapply(names(torun.minima), function(x) torun.minima[[x]][, filename := sprintf("minmodel_%s_%s.rds", x, taskname) ])
 lapply(names(torun.samples), function(x) torun.samples[[x]][, filename := sprintf("samplemodel_%s_%s_%04d.rds", x, taskname, seq_len(.N)), by = taskname])
 
@@ -123,15 +128,26 @@ trainLearnerFromInfoRow <- function(learnername, inforow) {
 
 datapath <- "data/trained_models"
 
-future::plan(future::multisession(), workers = 45)
+#future::plan(future::multisession(), workers = 45)
+#
+#for (evaluating in list(torun.minima, torun.samples)) {
+#  for (learnername in names(evaluating)) {
+#    cat(sprintf("Training %s models\n", learnername))
+#    future.apply::future_lapply(seq_len(nrow(evaluating[[learnername]])), function(i) {
+#      model <- trainLearnerFromInfoRow(learnername, evaluating[[learnername]][i])
+#      saveRDS(model, file = file.path(datapath, evaluating[[learnername]]$filename[[i]]))
+#      NULL
+#    }, future.seed = TRUE)
+#  }
+#}
 
 for (evaluating in list(torun.minima, torun.samples)) {
   for (learnername in names(evaluating)) {
     cat(sprintf("Training %s models\n", learnername))
-    future.apply::future_lapply(seq_len(nrow(evaluating[[learnername]])), function(i) {
+    parallel::mclapply(seq_len(nrow(evaluating[[learnername]])), function(i) {
       model <- trainLearnerFromInfoRow(learnername, evaluating[[learnername]][i])
       saveRDS(model, file = file.path(datapath, evaluating[[learnername]]$filename[[i]]))
       NULL
-    }, future.seed = TRUE)
+    }, mc.cores = 10)
   }
 }
