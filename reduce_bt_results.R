@@ -34,7 +34,7 @@ jt.xgb <- jt.all[algorithm == "xgb"]
 jt.xgb.unwrap <- unwrap(jt.xgb)
 results.xgb <- reduceResultsList(jt.xgb.unwrap[is.na(error), job.id])
 results.xgb.table <- lapply(results.xgb, unlist, recursive = FALSE) |> rbindlist(fill = TRUE)
-fulltable.xgb <- cbind(jt.xgb.unwrap, results.xgb.table)
+fulltable.xgb <- cbind(jt.xgb.unwrap[is.na(error)], results.xgb.table)
 collens <- sapply(fulltable.xgb, function(x) length(unique(x, useNA = "ifany")) == 1)
 fulltable.xgb[, (names(collens[collens == TRUE])) := NULL]
 fulltable.xgb[, batch.id := NULL]
