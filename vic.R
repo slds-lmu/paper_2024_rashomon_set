@@ -122,6 +122,8 @@ addExperiments(
   algo.designs = list(calculate_vic_pfi = data.table(learnername = names(list.learners.regr)))
 )
 
-testJob(1)
+submitJobs()
+waitForJobs()
 
-submitJobs(findErrors())
+res = reduceResultsList()
+save(res, "results_vic.RData")
