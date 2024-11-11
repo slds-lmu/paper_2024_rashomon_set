@@ -24,7 +24,11 @@ renv::install(c(
   "mlr3data",
   "glmnet",
   "snow",  # batchtools socket parallelization
-  "ggplot2"
+  "ggplot2",
+  "iml",
+  "tidyr",
+  "GGally",
+  "patchwork"
 ))
 
 renv::snapshot()
