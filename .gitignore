@@ -54,3 +54,4 @@
 *.rds
 registries/
 load_modules
+*.Rproj
