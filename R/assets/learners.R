@@ -93,7 +93,7 @@ learner.svm.regr$param_set$set_values(
   fitted = FALSE,
   type = "eps-regression"
 )
-learner.svm.regr <- as_learner(po("encode", method = "treatment") %>>!% po("learner", learner.svm.regr, id = "svm"))
+learner.svm.regr <- as_learner(po("encode", method = "treatment") %>>!% po("removeconstants") %>>!% po("learner", learner.svm.regr, id = "svm"))
 
 learner.svm.classif <- lrn("classif.svm", predict_type = "prob")
 learner.svm.classif$param_set$set_values(
@@ -105,5 +105,5 @@ learner.svm.classif$param_set$set_values(
   fitted = FALSE,
   type = "C-classification"
 )
-learner.svm.classif <- as_learner(po("encode", method = "treatment") %>>!% po("learner", learner.svm.classif, id = "svm"))
+learner.svm.classif <- as_learner(po("encode", method = "treatment") %>>!% po("removeconstants") %>>!% po("learner", learner.svm.classif, id = "svm"))
 
