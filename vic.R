@@ -102,6 +102,7 @@ design = pre_design[, .(rn = rep(rn, each = count),
                         model.no = sequence(count)), by = .(rn, learnername)]
 design = design[,-(1:2)]
 rm(run_models, run_models_2, run_models_3, run_models_no)
+save(pre_design, design, file = "data/design.RData")
 
 addExperiments(
   prob.designs = list(fromlist = data.table(taskname = design$rn)),
