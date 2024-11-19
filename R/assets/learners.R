@@ -82,3 +82,28 @@ learner.regr.glmnet$param_set$set_values(
 )
 learner.regr.glmnet <- as_learner(po("encode", method = "treatment") %>>!%
   po("learner", learner.regr.glmnet, id = "glmnet"))
+
+learner.svm.regr <- lrn("regr.svm")
+learner.svm.regr$param_set$set_values(
+  kernel = to_tune(c("linear", "polynomial", "radial")),
+  cost = to_tune(1e-4, 1e4, logscale = TRUE),
+  gamma = to_tune(1e-4, 1e4, logscale = TRUE),
+  tolerance = 1e-4,
+  degree = to_tune(2, 5),
+  fitted = FALSE,
+  type = "eps-regression"
+)
+learner.svm.regr <- as_learner(po("encode", method = "treatment") %>>!% po("removeconstants") %>>!% po("learner", learner.svm.regr, id = "svm"))
+
+learner.svm.classif <- lrn("classif.svm", predict_type = "prob")
+learner.svm.classif$param_set$set_values(
+  kernel = to_tune(c("linear", "polynomial", "radial")),
+  cost = to_tune(1e-4, 1e4, logscale = TRUE),
+  gamma = to_tune(1e-4, 1e4, logscale = TRUE),
+  tolerance = 1e-4,
+  degree = to_tune(2, 5),
+  fitted = FALSE,
+  type = "C-classification"
+)
+learner.svm.classif <- as_learner(po("encode", method = "treatment") %>>!% po("removeconstants") %>>!% po("learner", learner.svm.classif, id = "svm"))
+

@@ -20,13 +20,15 @@ list.learners.regr <- list(
   xgb = learner.xgb.regr,
   tree = learner.tree.regr,
   nnet = learner.nnet.regr,
-  glmnet = learner.regr.glmnet
+  glmnet = learner.regr.glmnet,
+  svm = learner.svm.regr
 )
 
 list.learners.classif <- list(
   xgb = learner.xgb.classif,
   tree = learner.tree.classif,
   nnet = learner.nnet.classif,
-  glmnet = learner.classif.glmnet
+  glmnet = learner.classif.glmnet,
+  svm = learner.svm.classif
 )
 
