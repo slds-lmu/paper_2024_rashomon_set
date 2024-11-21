@@ -5,15 +5,16 @@ library(ggplot2)
 library(tidyr)
 library(data.table)
 
+options(future.globals.maxSize= 891289600)
 
 # Registry
-regr = makeExperimentRegistry(file.dir = NA,
+regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/bs",
                               source = "init.R",
                               packages = c("iml", "GGally", "patchwork")
 )
 
 # Define Cluster-Configurations
-regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 18)
+regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 20)
 
 # Define Problem
 addProblem("fromlist", fun = function(data, job, taskname) {
@@ -96,13 +97,13 @@ run_models_3 = readRDS("/media/external/rashomon/datafiles/model_info/run_models
 run_models_no = data.table(sapply(run_models$torun.samples, function(x) table(x$taskname))[c("gc", "bs"), c("tree", "glmnet")], keep.rownames = TRUE)
 run_models_no = merge(run_models_no, data.table(sapply(run_models_2$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), all = TRUE)
 run_models_no = merge(run_models_no, data.table(sapply(run_models_3$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), by = "rn")
-pre_design = data.table(pivot_longer(run_models_no[-1,], !rn, names_to = "learnername", values_to = "count"))
+pre_design = data.table(pivot_longer(run_models_no[1,], !rn, names_to = "learnername", values_to = "count"))
 design = pre_design[, .(rn = rep(rn, each = count),
                         learnername = rep(learnername, each = count),
                         model.no = sequence(count)), by = .(rn, learnername)]
 design = design[,-(1:2)]
 rm(run_models, run_models_2, run_models_3, run_models_no)
-save(pre_design, design, file = "data/design.RData")
+save(pre_design, design, file = paste0("data/design_", design$rn[1], ".RData"))
 
 addExperiments(
   prob.designs = list(fromlist = data.table(taskname = design$rn)),
@@ -125,7 +126,7 @@ waitForJobs()
 save_results = function(job_table, ids, learnername){
   list.pfi_tmp = list()
   # save median importance and feature from batchtools results
-  list.pfi_tmp[[learnername]] = reduceResultsList(ids = ids, function(x) {
+  list.pfi_tmp[[learnername]] = reduceResultsList(ids = ids, reg = regr, fun = function(x) {
     tab = x$results
     subset(tab, select = c(feature, importance))
   })
@@ -183,5 +184,5 @@ for(i in 1:length(pre_design$count)){
   }
 }
 
-save(vic, vic_normalized, file = "data/results_vic.RData")
+save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], ".RData"))
 
