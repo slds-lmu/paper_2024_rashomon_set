@@ -93,14 +93,14 @@ alltoeval <- sapply(names(allred), function(ln) {
 torun.minima <- lapply(alltoeval, function(x) x[, .SD[which.min(score)], by = "taskname"])
 # torun.minima <- lapply(alltoeval, function(x) x[taskname %in% c("cs", "st"), .SD[which.min(score)], by = "taskname"])
 
-                       
+
 lapply(alltoeval, function(x) x[is.grid == FALSE, .(.SD[score <= min(score) * 1.05] |> nrow()), by = "taskname"])
 
 set.seed(1)
 torun.samples <- lapply(alltoeval, function(x) x[is.grid == FALSE, .SD[score <= min(score) * 1.05][sample(.N, min(1000, .N))], by = "taskname"])
 # torun.samples <- lapply(alltoeval, function(x) x[is.grid == FALSE & taskname %in% c("cs", "st"), .SD[score <= min(score) * 1.05][sample(.N, min(1000, .N))], by = "taskname"])
 
-                        
+
 lapply(names(torun.minima), function(x) torun.minima[[x]][, filename := sprintf("minmodel_%s_%s.rds", x, taskname) ])
 lapply(names(torun.samples), function(x) torun.samples[[x]][, filename := sprintf("samplemodel_%s_%s_%04d.rds", x, taskname, seq_len(.N)), by = taskname])
 
