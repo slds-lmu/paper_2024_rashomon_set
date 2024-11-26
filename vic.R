@@ -5,16 +5,20 @@ library(ggplot2)
 library(tidyr)
 library(data.table)
 
-options(future.globals.maxSize= 891289600)
 
-# Registry
-regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/bs",
+
+# Registry: 
+# "/media/external/ewaldf/bs"
+# "/media/external/ewaldf/bs_xgb"
+regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/bs_xgb",
                               source = "init.R",
                               packages = c("iml", "GGally", "patchwork")
 )
 
+setDefaultRegistry(regr)
+
 # Define Cluster-Configurations
-regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 20)
+regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 7)
 
 # Define Problem
 addProblem("fromlist", fun = function(data, job, taskname) {
@@ -97,8 +101,9 @@ run_models_3 = readRDS("/media/external/rashomon/datafiles/model_info/run_models
 run_models_no = data.table(sapply(run_models$torun.samples, function(x) table(x$taskname))[c("gc", "bs"), c("tree", "glmnet")], keep.rownames = TRUE)
 run_models_no = merge(run_models_no, data.table(sapply(run_models_2$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), all = TRUE)
 run_models_no = merge(run_models_no, data.table(sapply(run_models_3$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), by = "rn")
+# change the following 2 lines
 pre_design = data.table(pivot_longer(run_models_no[1,], !rn, names_to = "learnername", values_to = "count"))
-design = pre_design[, .(rn = rep(rn, each = count),
+design = pre_design[3, .(rn = rep(rn, each = count),
                         learnername = rep(learnername, each = count),
                         model.no = sequence(count)), by = .(rn, learnername)]
 design = design[,-(1:2)]
@@ -184,5 +189,5 @@ for(i in 1:length(pre_design$count)){
   }
 }
 
-save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], ".RData"))
+save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], "_xgb.RData"))
 
