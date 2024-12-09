@@ -12,7 +12,8 @@ RashomonSampler <- R6Class("RashomonSampler",
         lower = 0, upper = .Machine$integer.max, any.missing = FALSE, len = 1, tol = 0
       )
       withLocalSeed(private$.seed, set.seed(seed))
-      private$.n.rashomon.samples <- assertCount(n.rashomon.samples, tol = 0)
+      assert(checkCount(n.rashomon.samples, tol = 0), checkNumber(n.rashomon.samples, lower = Inf))
+      private$.n.rashomon.samples <- n.rashomon.samples
       private$.told.x.samples <- 0L
     },
     rashomonSamplesComplete = function() {
@@ -20,6 +21,29 @@ RashomonSampler <- R6Class("RashomonSampler",
     },
     getRashomonSamples = function() {
       private$.getRashomonSamples()
+    },
+    # TODO: not sure if this is a good idea
+    augmentXYSamples = function(x, scorecol = "score") {
+      if (!is.null(private$.tell.x.buffer)) stop("Cannot augment X when X request was already partially answered.")
+      if (!is.null(private$.ask.y.buffer)) stop("Cannot augment X when Y was asked and not answered.")
+      if (self$askXSamples() == 0) stop("Cannot augment X when no X requested.")
+
+      assertDataFrame(x)
+      assertChoice(scorecol, colnames(x))
+      assertDisjunct(scorecol, c(".id", self$domain$ids()))
+      assertNames(colnames(x), must.include = self$domain$ids())
+      if (!nrow(x)) return(invisible(x))
+
+      x <- as.data.table(x)
+      if (!".id" %in% colnames(x)) {
+        # either accept the user's ids or generate new ones
+        x$.id <- seq.int(private$.told.x.samples + 1, private$.told.x.samples + nrow(x))
+      }
+      private$.told.x.samples <- private$.told.x.samples + nrow(x)
+
+      xy <- cbind(data.table(.id = x$.id, .score = x[[scorecol]]), x[, self$domain$ids(), with = FALSE])
+      private$.augmentXYSamples(xy)
+      invisible(x)
     },
     askXSamples = function() {
       if (!is.null(private$.ask.y.buffer)) return(0)
@@ -30,7 +54,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       private$.ask.x.buffer <- assertCount(axb, tol = 0)
       private$.ask.x.buffer
     },
-    tellXSamples = function(x) {
+    tellXSamples = function(x, scorecol = "score") {
       if (!is.null(private$.ask.y.buffer)) stop("Cannot tell X when Y was asked and not answered.")
       ask.x.samples <- self$askXSamples()
       assertDataFrame(x, max.rows = ask.x.samples - NROW(private$.tell.x.buffer))
@@ -40,7 +64,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       assertNames(colnames(x), must.include = self$domain$ids())
       if (!".id" %in% colnames(x)) {
         # either accept the user's ids or generate new ones
-        set(x, j = ".id", value = seq.int(private$.told.x.samples + 1, private$.told.x.samples + nrow(x)))
+        x$.id <- seq.int(private$.told.x.samples + 1, private$.told.x.samples + nrow(x))
       }
       private$.told.x.samples <- private$.told.x.samples + nrow(x)
       private$.tell.x.buffer <- rbind(private$.tell.x.buffer, x)
@@ -48,6 +72,11 @@ RashomonSampler <- R6Class("RashomonSampler",
         assertTRUE(nrow(private$.tell.x.buffer) == ask.x.samples)
         x <- private$.tell.x.buffer
         private$.tell.x.buffer <- NULL
+        if (scorecol %in% colnames(x)) {
+          colnames(x)[colnames(x) == scorecol] <- ".score"
+        } else {
+          x$.score <- NA_real_
+        }
         withLocalSeed(private$.seed, private$.tellXSamples(x))
       }
       private$.ask.x.buffer <- NULL
@@ -103,18 +132,18 @@ RashomonSampler <- R6Class("RashomonSampler",
     seed = function() private$.seed,
     rashomon.epsilon = function() private$.rashomon.epsilon,
     rashomon.is.relative = function() private$.rashomon.is.relative,
-    n.samples = function(rhs) {
+    n.rashomon.samples = function(rhs) {
       if (!missing(rhs)) {
         assertCount(rhs, tol = 0)
-        if (rhs != private$.n.samples) {
+        if (rhs != private$.n.rashomon.samples) {
           if (!is.null(private$.tell.x.buffer) || !is.null(private$.tell.y.buffer)) {
-            stop("Cannot change n.samples after samples have been asked (x) or incompletely told (x, y)")
+            stop("Cannot change n.rashomon.samples after samples have been asked (x) or incompletely told (x, y)")
           }
           private$.ask.x.buffer <- NULL
-          private$.n.samples <- rhs
+          private$.n.rashomon.samples <- rhs
         }
       }
-      private$.n.samples
+      private$.n.rashomon.samples
     }
   ),
   private = list(
@@ -146,6 +175,9 @@ RashomonSampler <- R6Class("RashomonSampler",
       stop("Not implemented")
     },
     .getRashomonSamples = function() {
+      stop("Not implemented")
+    },
+    .augmentXYSamples = function(xy) {
       stop("Not implemented")
     }
   )

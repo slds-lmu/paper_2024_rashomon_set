@@ -21,20 +21,22 @@ RashomonSamplerRandom <- R6Class("RashomonSamplerRandom",
     .scorecol = NULL,
     .batchsize = NULL,
     .askXSamples = function() {
+      if (!is.null(private$.xcoord)) return(0)
       if (is.null(private$.archive)) private$.initial.sample.size else private$.batchsize
     },
     .tellXSamples = function(x) {
-      private$.xcoord <- x
+      if (any(is.na(x$.score))) {
+        private$.xcoord <- x
+      } else {
+        private$.archive <- rbind(private$.archive, x)
+      }
     },
     .askYValues = function() {
-      private$.xcoord
+      private$.xcoord[is.na(.score)]
     },
-    .tellYValues = function(y, scorecol) {
-      if (is.null(private$.scorecol)) {
-        private$.scorecol <- scorecol
-      }
-      assertTRUE(private$.scorecol == scorecol)
-      private$.archive <- rbind(private$.archive, y)
+    .tellYValues = function(y) {
+      set(private$.xcoord, is.na(.score), ".score", y$.score)
+      private$.archive <- rbind(private$.archive, private$.xcoord)
     },
     .getRashomonSamples = function() {
       if (is.null(private$.archive)) {
