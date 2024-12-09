@@ -82,12 +82,12 @@ getStatus()
 task.bh
 
 
-ranges von statistiken explorieren
- - jointly?
-
-vs.
-
-uniformly sampling
+#ranges von statistiken explorieren
+# - jointly?
+#
+#vs.
+#
+# uniformly sampling
 
 jt[, mean(as.numeric(time.running), na.rm = TRUE), by = c("taskname", "learnername")][,
   sum(V1) / 3600 * 1e4, by = "learnername"]

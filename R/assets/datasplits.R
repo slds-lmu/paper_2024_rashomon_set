@@ -49,10 +49,10 @@ generateCanonicalDataSplits <- function(task, ratio = 2 / 3, seed = 1) {
 
   set.seed(seed)
   n <- task$nrow
-  train_set <- sample.int(n, size = min(n - 1, max(1, round(n * ratio))))
-  test_set <- setdiff(seq_len(n), train_set)
+  train.set <- sample.int(n, size = min(n - 1, max(1, round(n * ratio))))
+  test.set <- setdiff(seq_len(n), train.set)
   list(
-    training = task$clone(deep = TRUE)$filter(rows = train_set),
-    validation = task$clone(deep = TRUE)$filter(rows = test_set)
+    training = task$clone(deep = TRUE)$filter(rows = train.set),
+    validation = task$clone(deep = TRUE)$filter(rows = test.set)
   )
 }

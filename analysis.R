@@ -1,13 +1,13 @@
 
 library("data.table")
 library("ggplot2")
-readRDS("/tmp/rashomon.table.glmnet.rds") -> tt
-readRDS("/tmp/rashomon.table.tree.rds") -> ttree
-readRDS("/tmp/rashomon.table.xgb.rds") -> txgb
+readRDS("data/rashomon.table.glmnet.rds") -> tt
+readRDS("data/rashomon.table.tree.rds") -> ttree
+readRDS("data/rashomon.table.xgb.rds") -> txgb
 
 
 tt[, is.grid := TRUE]
-tt[seq_len(nrow(tt)/2), is.grid := FALSE]
+tt[seq_len(nrow(tt) / 2), is.grid := FALSE]
 
 reduced <- tt[, .(bbrier = mean(result.classif.bbrier), bbrier.se = sd(result.classif.bbrier), rmse = mean(result.regr.rmse), rmse.se = sd(result.regr.rmse), is.grid = all(is.grid)),
   by = c("taskname", "config.glmnet.alpha", "config.glmnet.lambda")]
@@ -16,7 +16,7 @@ sliced.by.trial <- lapply(1:10, function(i) tt[seq(i, nrow(tt), by = i), .(bbrie
 
 
 ttree[, is.grid := TRUE]
-ttree[seq_len(nrow(ttree)/2), is.grid := FALSE]
+ttree[seq_len(nrow(ttree) / 2), is.grid := FALSE]
 
 ttree[is.grid == TRUE, table(config.cp) |> length()]
 ttree[is.grid == FALSE, table(config.cp) |> length()]
@@ -92,7 +92,7 @@ reduced[is.grid == TRUE, table(config.glmnet.lambda) |> length()]
 
 ########
 
-scores.used = c(gc = "bbrier", cs = "bbrier", bs = "rmse")
+scores.used <- c(gc = "bbrier", cs = "bbrier", bs = "rmse")
 
 allred <- list(
   xgb = reduced.xgb,
@@ -170,8 +170,8 @@ ggplot(allresults_final[taskname == usetask], aes(x = rank, y = score,
 allresults[, .(score_min = min(score), sd_min = score.se[which.min(score)]), by = c("taskname", "algoname")]
 
 
-library("mlr3")
-library("mlr3learners")
+library("mlr3")  # nolint
+library("mlr3learners")  # nolint
 demotask <- as_task_regr(data.table(x = rnorm(80) + c(0, 1), y = 1:2), target = "x")
 # plot(demotask$data())
 ll2 <- lrn("regr.ranger", num.trees = 2000, splitrule = "extratrees")$train(demotask)
@@ -324,42 +324,6 @@ optpoint.sd
 
 reduced.xgb[task == taskname, .(bbrier, bbrier.se, rmse, rmse.se, N)][which.min(get(outcome)), get(paste0(outcome, ".se"))]
 
-1+1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -433,7 +397,7 @@ ggplot(reduced[taskname == task][10001:20000], aes(x = config.glmnet.alpha, y = 
 
 subset_data <- reduced[taskname == task][10001:20000]
 
-library("plotly")
+library("plotly")  # nolint
 # Plot the 3D surface
 plot_ly(
   data = subset_data,

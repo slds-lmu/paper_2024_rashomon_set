@@ -30,4 +30,3 @@ list.learners.classif <- list(
   glmnet = learner.classif.glmnet,
   svm = learner.svm.classif
 )
-

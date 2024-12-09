@@ -1,13 +1,13 @@
 
 task.getter.problem.fun <- function(data, job, taskname) {
-  task = list.tasks[[taskname]]
+  task <- list.tasks[[taskname]]
   generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$training
 }
 
 
 perf.evaluation.fun <- function(data, instance, job, ...) {
   resampling <- resampling.inner$clone(deep = TRUE)$instantiate(instance)
-  if ("TaskClassif" %in% class(instance)) {
+  if ("TaskClassif" %in% class(instance)) {  # nolint
     learnerlist <- list.learners.classif
     measure <- measure.classif
   } else {
@@ -70,4 +70,3 @@ addExperimentsPerfEvaluation <- function(
     repls = repls
   )
 }
-

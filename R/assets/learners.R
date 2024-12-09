@@ -5,9 +5,9 @@ learner.xgb.regr.base$param_set$set_values(
   max_depth = to_tune(1, 20, logscale = TRUE),
   lambda = to_tune(1e-3, 1e3, logscale = TRUE),
   alpha = to_tune(1e-3, 1e3, logscale = TRUE),
-  colsample_bytree = to_tune(.1, 1),
-  colsample_bylevel = to_tune(.1, 1),
-  subsample = to_tune(1e-1, 1)
+  colsample_bytree = to_tune(0.1, 1),
+  colsample_bylevel = to_tune(0.1, 1),
+  subsample = to_tune(0.1, 1)
 )
 learner.xgb.regr <- as_learner(po("encode", method = "treatment") %>>!%
   po("learner", learner.xgb.regr.base, id = "xgb"))
@@ -19,9 +19,9 @@ learner.xgb.classif.base$param_set$set_values(
   max_depth = to_tune(1, 20, logscale = TRUE),
   lambda = to_tune(1e-3, 1e3, logscale = TRUE),
   alpha = to_tune(1e-3, 1e3, logscale = TRUE),
-  colsample_bytree = to_tune(.1, 1),
-  colsample_bylevel = to_tune(.1, 1),
-  subsample = to_tune(1e-1, 1)
+  colsample_bytree = to_tune(0.1, 1),
+  colsample_bylevel = to_tune(0.1, 1),
+  subsample = to_tune(0.1, 1)
 )
 learner.xgb.classif <- as_learner(po("encode", method = "treatment") %>>!%
   po("learner", learner.xgb.classif.base, id = "xgb"))
@@ -31,14 +31,14 @@ learner.tree.regr <- lrn("regr.rpart")
 learner.tree.regr$param_set$set_values(
   minsplit = to_tune(2, 2^7, logscale = TRUE),
   minbucket = to_tune(1, 2^6, logscale = TRUE),
-  cp = to_tune(1e-4, .2, logscale = TRUE)
+  cp = to_tune(1e-4, 0.2, logscale = TRUE)
 )
 
 learner.tree.classif <- lrn("classif.rpart", predict_type = "prob")
 learner.tree.classif$param_set$set_values(
   minsplit = to_tune(2, 2^7, logscale = TRUE),
   minbucket = to_tune(1, 2^6, logscale = TRUE),
-  cp = to_tune(1e-4, .2, logscale = TRUE)
+  cp = to_tune(1e-4, 0.2, logscale = TRUE)
 )
 
 learner.nnet.classif <- lrn("classif.nnet", predict_type = "prob")
@@ -93,7 +93,8 @@ learner.svm.regr$param_set$set_values(
   fitted = FALSE,
   type = "eps-regression"
 )
-learner.svm.regr <- as_learner(po("encode", method = "treatment") %>>!% po("removeconstants") %>>!% po("learner", learner.svm.regr, id = "svm"))
+learner.svm.regr <- as_learner(po("encode", method = "treatment") %>>!%
+  po("removeconstants") %>>!% po("learner", learner.svm.regr, id = "svm"))
 
 learner.svm.classif <- lrn("classif.svm", predict_type = "prob")
 learner.svm.classif$param_set$set_values(
@@ -105,5 +106,5 @@ learner.svm.classif$param_set$set_values(
   fitted = FALSE,
   type = "C-classification"
 )
-learner.svm.classif <- as_learner(po("encode", method = "treatment") %>>!% po("removeconstants") %>>!% po("learner", learner.svm.classif, id = "svm"))
-
+learner.svm.classif <- as_learner(po("encode", method = "treatment") %>>!%
+  po("removeconstants") %>>!% po("learner", learner.svm.classif, id = "svm"))

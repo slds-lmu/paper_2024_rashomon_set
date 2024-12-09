@@ -41,4 +41,3 @@ fulltable.xgb[, batch.id := NULL]
 fulltable.xgb[, job.hash := NULL]
 
 saveRDS(fulltable.xgb, "data/rashomon.table.xgb.rds")
-
