@@ -1,0 +1,24 @@
+linters: all_linters(packages = "lintr",
+    line_length_linter(120L),
+    unnecessary_concatenation_linter(allow_single_expression = FALSE),
+    strings_as_factors_linter = NULL,
+    object_name_linter(styles = c("CamelCase", "dotted.case"), regex = c(UpperCamelCase = "[A-Z][a-zA-Z0-9]*")),
+    todo_comment_linter = NULL,
+    extraction_operator_linter = NULL,
+    implicit_integer_linter = NULL,
+    nonportable_path_linter = NULL,
+    redundant_equals_linter = NULL,  # data.table needs this
+    undesirable_function_linter = NULL,
+    indentation_linter(indent = 2L, hanging_indent_style = "never"),
+    commented_code_linter = NULL,
+    pipe_continuation_linter = NULL,
+    brace_linter(allow_single_line = TRUE),
+    object_usage_linter = NULL,
+    cyclocomp_linter = NULL,
+    indentation_linter = NULL,
+    unused_import_linter = NULL
+  )
+exclusions: list(
+    "renv",
+    "experiments.R"
+  )
