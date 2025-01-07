@@ -15,8 +15,6 @@ regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/bs_xgb",
                               packages = c("iml", "GGally", "patchwork")
 )
 
-setDefaultRegistry(regr)
-
 # Define Cluster-Configurations
 regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 7)
 
@@ -103,7 +101,7 @@ run_models_no = merge(run_models_no, data.table(sapply(run_models_2$torun.sample
 run_models_no = merge(run_models_no, data.table(sapply(run_models_3$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), by = "rn")
 # change the following 2 lines
 pre_design = data.table(pivot_longer(run_models_no[1,], !rn, names_to = "learnername", values_to = "count"))
-design = pre_design[3, .(rn = rep(rn, each = count),
+design = pre_design[, .(rn = rep(rn, each = count),
                         learnername = rep(learnername, each = count),
                         model.no = sequence(count)), by = .(rn, learnername)]
 design = design[,-(1:2)]
@@ -126,6 +124,7 @@ waitForJobs()
 
 
 #### Extract results ###########################################################
+setDefaultRegistry(regr)
 
 ## save results per data set and learner
 save_results = function(job_table, ids, learnername){
@@ -141,7 +140,7 @@ save_results = function(job_table, ids, learnername){
     vic_tmp = merge(vic_tmp,
                 list.pfi_tmp[[learnername]][[j]][,c("feature","importance")],
                 by = "feature")
-    colnames(vic_tmp)[j+1] = paste0("pfi_", learnername, "_m", j)
+    colnames(vic_tmp)[j+1] = paste0("pfi_", learnername, "_m", ids[j])
   }
 
   res.list = list()
@@ -164,6 +163,7 @@ for(i in 1:length(pre_design$count)){
     ids = job_table$job.id[(num-(pre_design$count[i]-1)):num]
   }
   rm(num)
+  ids = ids[is.na(job_table$error[job_table$job.id %in% ids])]
 
   res = save_results(job_table, ids, learnername)
   if(!(pre_design$rn[i] %in% names(list.pfi))) list.pfi[[pre_design$rn[i]]] = list()
@@ -189,5 +189,13 @@ for(i in 1:length(pre_design$count)){
   }
 }
 
-save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], "_xgb.RData"))
+if(length(unique(design$learnername)) == 1){
+  tmp_vic = vic
+  tmp_vic_norm = vic_normalized
+  load("data/results_vic_bs.RData")
+  learnername = unique(design$learnername)
+  vic$bs = cbind(vic$bs, tmp_vic$bs[-1])
+  vic_normalized$bs = cbind(vic_normalized$bs, tmp_vic_norm$bs[-1])
+}
+save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], ".RData"))
 
