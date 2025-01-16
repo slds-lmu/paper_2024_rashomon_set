@@ -28,7 +28,7 @@ withLocalSeed <- function(local.seed.var, expr) {
   result
 }
 
-getNullTable <- function(domain, include.id = FALSE) {
+getNullTable <- function(domain, include.id = FALSE, include.score = FALSE) {
   indt <- sapply(domain$ids(), function(x) numeric(0), simplify = FALSE)
   table <- domain$qunif(as.data.frame(indt))
   for (i in which(domain$is_categ)) {
@@ -36,6 +36,9 @@ getNullTable <- function(domain, include.id = FALSE) {
   }
   if (include.id) {
     set(table, j = ".id", value = integer(0))
+  }
+  if (include.score) {
+    set(table, j = ".score", value = numeric(0))
   }
   table
 }

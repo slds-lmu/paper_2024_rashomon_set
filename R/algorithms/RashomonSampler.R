@@ -122,7 +122,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       private$.tell.x.buffer <- NULL
 
       withLocalSeed(private$.seed, private$.tellYValues(ayb, scorecol))
-      getNullTable(self$domain, include.id = TRUE)
+      invisible(getNullTable(self$domain, include.id = TRUE))
     }
   ),
   active = list(
@@ -159,24 +159,32 @@ RashomonSampler <- R6Class("RashomonSampler",
     .told.x.samples = NULL,
     .ask.y.buffer = NULL,
     .tell.y.buffer = NULL,
+    # get a table with codomain$ids(), possibly .id, and possibly .score
     .tellXSamples = function(x) {
       stop("Not implemented")
     },
+    # return number of samples to expect in .tellXSamples
     .askXSamples = function() {
       stop("Not implemented")
     },
+    # return data.table of configs to evaluate. contains .id, which .tellYValues will match to.
+    # If .tellXSamples contained .id, it should match here.
     .askYValues = function() {
       stop("Not implemented")
     },
+    # given a table with codomain$ids(), .id, and .score
     .tellYValues = function(y) {
       stop("Not implemented")
     },
+    # return the number of rashomon samples that have been found
     .rashomonSamplesComplete = function() {
       stop("Not implemented")
     },
+    # get a table with codomain$ids(), .id, and .score
     .getRashomonSamples = function() {
       stop("Not implemented")
     },
+    # not yet fully implemented / designed
     .augmentXYSamples = function(xy) {
       stop("Not implemented")
     }

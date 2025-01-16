@@ -1,0 +1,40 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{geometry}
+
+\geometry{
+    a4paper,
+    margin=2.5cm
+}
+
+\title{Algorithm Description}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{algorithm}
+    \caption{Entropy-based Optimization Algorithm}
+    \begin{algorithmic}[1]
+    \Require Objective function $c(\cdot)$, sampler $p$, number of initial samples $N$, threshold $\epsilon$
+    \State Generate samples $\lambda^{(i)}$, $1 \leq i \leq N$ from $p$
+    \State Initialize archive $\mathcal{A}^{[0]} = \{(\lambda^{(1)}, c(\lambda^{(1)})), \ldots, (\lambda^{(k)}, c(\lambda^{(k)}))\}$
+    \For{$t = 1, 2, 3, \ldots$ until termination}
+        \State Fit Gaussian Process surrogate model $(\hat{c}(\lambda), \hat{\sigma}(\lambda))$ on $\mathcal{A}^{[t-1]}$
+        \State Find $\hat{c}^* = \sup_{\lambda} \hat{c}(\lambda)$
+        \For{each unevaluated candidate $\lambda^{(j)}$}
+            \State Calculate $H[t,j]$: entropy of $P(c(\lambda^{(i)}) > \hat{c}^* - \epsilon \mid c(\lambda^{(j)}))$
+        \EndFor
+        \State Evaluate $c(\lambda^{(j^*)})$ where $j^* = \argmin_j H[t,j]$
+        \State Update $\mathcal{A}^{[t]} = \mathcal{A}^{[t-1]} \cup \{(\lambda^{(j^*)}, c(\lambda^{(j^*)})\}$
+    \EndFor
+    \end{algorithmic}
+    \end{algorithm}
+
+\end{document}
