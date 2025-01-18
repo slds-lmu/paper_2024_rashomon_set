@@ -4,6 +4,7 @@
 #' This objective function samples from a Gaussian process with given parameters.
 #'
 #' The objective is always on a hypercube ranging from 0 to 1, but with configurable lengthscales.
+#' The amplitude of the kernel is set to 1.
 #' Available kernels are `"matern32"`, `"matern52"`, and `"se"` (squared exponential).
 #'
 #' @details
@@ -54,8 +55,8 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
     .lengthscales = NULL,
     .noise = NULL,
     .kernel = NULL,
-    .cache = NULL,
-    .cache.kernel = NULL,
+    .cache = NULL,  # data.table holding old x and y
+    .chol = NULL,  # store the Cholesky factor of the kernel of all cached points
 
     .computeKernel = function(X1, X2 = NULL) {
       # computes the kernel matrix, either between X1 and X2 or between X1 and itself
@@ -86,34 +87,118 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
       n.new <- nrow(x.mat)
 
       if (nrow(private$.cache) == 0) {
-        # First evaluation: sample unconditionally
+        #---------------------------------------------------------
+        # FIRST EVALUATION (UNCONDITIONAL)
+        #---------------------------------------------------------
+        # 1. Compute K_xx + noise
         K.xx <- private$.computeKernel(x.mat) + diag(private$.noise, n.new)
-        private$.cache.kernel <- K.xx
-        L <- chol(K.xx)
-        y <- drop(crossprod(L, rnorm(n.new)))
+
+        # 2. Cholesky factor (R upper triangular: K.xx = R^T R)
+        R <- chol(K.xx)
+
+        # 3. Sample from N(0, K.xx)
+        y <- drop(crossprod(R, rnorm(n.new)))
+
+        # 4. Cache
+        private$.chol <- R  # store the factor for future block updates
+
       } else {
-        # Get cached data
-        x.old <- as.matrix(private$.cache[, -"y"])
+        #---------------------------------------------------------
+        # SUBSEQUENT EVALUATIONS (CONDITIONAL)
+        #---------------------------------------------------------
+        # 1. Gather old data and old R
+        x.old <- as.matrix(private$.cache[, -"y", with = FALSE])
         y.old <- private$.cache$y
+        R.old <- private$.chol  # R.old is the upper-triangular chol factor of K_{XX}
+        n.old <- nrow(x.old)
 
-        # Compute new kernel matrices
+        # 2. Compute K.xx for new points + noise
         K.xx <- private$.computeKernel(x.mat) + diag(private$.noise, n.new)
+        # 3. Compute cross-covariances for new points:
+        #     K.xX = cov(new points, old points)
         K.xX <- private$.computeKernel(x.mat, x.old)
-        K.XX <- private$.cache.kernel
 
-        # Compute conditional mean and covariance
-        K.XX.inv <- solve(K.XX)
-        mu <- K.xX %*% K.XX.inv %*% y.old
-        Sigma <- K.xx - K.xX %*% K.XX.inv %*% t(K.xX)
+        #---------------------------------------------------------
+        # 4a. Posterior mean:
+        # mu = K.xX K.XX^-1 y_old
+        #
+        #   But K.XX^-1 y_old can be computed by a two-step solve with R.old:
+        #   R.old^T R.old = K.XX
+        #   Let alpha = K.XX^-1 y_old => R.old * R.old^T * alpha = y_old
+        #   => solve upper then solve lower, or vice versa.
+        #   Since R.old is upper triangular, we do:
+        v <- backsolve(R.old, y.old, transpose = TRUE)
+        alpha <- backsolve(R.old, v, transpose = FALSE)
 
-        # Sample from conditional distribution
-        L <- chol(Sigma + diag(1e-10, n.new))  # Add small constant for numerical stability
-        y <- drop(mu + crossprod(L, rnorm(n.new)))
+        # Now we need (K.xX K.XX^-1), which is K.xX * alpha if we want the mean directly,
+        # but for the covariance we also need K.xX K.XX^-1 K.Xx. So let's get
+        # W = K.xX K.XX^-1 in a matrix sense. That means W = K.xX * solve(K.XX).
+        #   => W = K.xX * (K.XX^-1)
+        #   => we can do: W = K.xX * alpha for the vector part, but for the matrix part:
+        #   => W = K.xX %*% K.XX^-1 = (K.xX * solve(R.old^T)) * solve(R.old)
+        #
+        # We'll do it in steps:
 
-        # Update kernel cache
-        private$.cache.kernel <- rbind(
-          cbind(K.XX, t(K.xX)),
-          cbind(K.xX, K.xx)
+        # Step A: solve(R.old^T, K.xX^T)
+        #  (that is, backsolve(R.old, t(K.xX), transpose=TRUE).)
+        K.Xx <- t(K.xX)  # dimension n.old x n.new
+        U <- backsolve(R.old, K.Xx, transpose = TRUE)
+        # Now solve(R.old, temp, transpose=FALSE) => W^T
+        Wt <- backsolve(R.old, U, transpose = FALSE)
+        W <- t(Wt)  # dimension: n.new x n.old
+
+        mu <- W %*% y.old  # K.xX K.XX^-1 y_old
+
+        # 4b. Posterior covariance: Sigma = K.xx - K.xX K.XX^-1 K.Xx = K.xx - W K.Xx
+        #     But W K.Xx = W %*% t(K.xX). We'll just re-use Wt = t(W).
+        #     => Wt is n.old x n.new, so Wt * t(K.xX) is n.old x ?
+        # Actually more directly:
+        #   W K.Xx = W %*% t(K.xX) if we interpret "K.Xx" = (K.xX)^T
+        #   => so W K.Xx = W %*% t(K.xX)
+
+        # K.Xx is n.old x n.new.
+        # W is n.new x n.old, so W %*% K.Xx is n.new x n.new.
+
+        crossTerm <- W %*% K.Xx  # n.new x n.new
+        Sigma <- K.xx - crossTerm
+
+        # 4c. Sample from N(mu, Sigma)
+        # We do a small diagonal jitter to ensure stability
+        # Then do chol and draw: y = mu + R_Sigma^T * z
+        R.Sig <- chol(Sigma + diag(1e-10, n.new))
+
+        y <- drop(mu + crossprod(R.Sig, rnorm(n.new)))
+
+        #---------------------------------------------------------
+        # 5. **Block Cholesky update** for the *full* kernel.
+        #
+        # We want to produce R.new (upper-triangular) such that
+        #    K.new = [ K.XX   K.Xx ] = R.new^T R.new
+        #            [ K.xX   K.xx ]
+        #
+        # We already have R.old s.t. K.XX = R.old^T R.old.
+        # The standard block formula is:
+        #
+        #   U = solve(R.old, K.Xx, transpose = TRUE)  # => dimension n.old x n.new; we solved that above
+        #   Then define block S = K.xx - U^T U
+        #   Then R.new = block upper-tri:
+        #        [ R.old    U     ]
+        #        [   0    chol(S) ]
+        #
+        # We'll store R.new to handle the next iteration.
+
+        S <- K.xx - crossprod(U)  # = K.xx - U^T U
+
+        # Cholesky of S:
+        R.S <- chol(S + diag(1e-10, n.new))  # upper triangular, dimension n.new x n.new
+
+        # Now we form the new big R block-matrix. For memory reasons,
+        # we can store it all or keep it in some compact form. We will store
+        # the entire new factor in a (n.old + n.new) x (n.old + n.new) matrix:
+
+        private$.chol <- rbind(
+          cbind(R.old, U),
+          cbind(matrix(0, nrow = n.new, ncol = n.old), R.S)
         )
       }
 
