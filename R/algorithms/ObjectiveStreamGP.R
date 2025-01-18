@@ -85,19 +85,27 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
       # Caches previous kernel matrix values, as well as previously evaluated points.
       x.mat <- as.matrix(x[, -".id", with = FALSE])
       n.new <- nrow(x.mat)
+      # Generate two samples from N(0, 1) for each new point.
+      # The following ensures that normal.sample[1, ] is always the same
+      # whether .eval() is called once for a batch, or multiple times for each point.
+      # Same for normal.sample[2, ].
+      normal.sample <- matrix(rnorm(n.new * 2), nrow = 2)
 
       if (nrow(private$.cache) == 0) {
         #---------------------------------------------------------
         # FIRST EVALUATION (UNCONDITIONAL)
         #---------------------------------------------------------
         # 1. Compute K_xx + noise
-        K.xx <- private$.computeKernel(x.mat) + diag(private$.noise, n.new)
+        K.xx <- private$.computeKernel(x.mat) + diag(1e-10, n.new)
 
         # 2. Cholesky factor (R upper triangular: K.xx = R^T R)
         R <- chol(K.xx)
 
         # 3. Sample from N(0, K.xx)
-        y <- drop(crossprod(R, rnorm(n.new)))
+        #    We add the noise separately, so that the same seed gives rise to the
+        #    same GP sample with scaled noise.
+
+        y <- drop(crossprod(R, normal.sample[1, ]))
 
         # 4. Cache
         private$.chol <- R  # store the factor for future block updates
@@ -113,7 +121,7 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
         n.old <- nrow(x.old)
 
         # 2. Compute K.xx for new points + noise
-        K.xx <- private$.computeKernel(x.mat) + diag(private$.noise, n.new)
+        K.xx <- private$.computeKernel(x.mat) + diag(1e-10, n.new)
         # 3. Compute cross-covariances for new points:
         #     K.xX = cov(new points, old points)
         K.xX <- private$.computeKernel(x.mat, x.old)
@@ -163,11 +171,10 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
         Sigma <- K.xx - crossTerm
 
         # 4c. Sample from N(mu, Sigma)
-        # We do a small diagonal jitter to ensure stability
-        # Then do chol and draw: y = mu + R_Sigma^T * z
-        R.Sig <- chol(Sigma + diag(1e-10, n.new))
+        # do chol and draw: y = mu + R_Sigma^T * z
+        R.Sig <- chol(Sigma)
 
-        y <- drop(mu + crossprod(R.Sig, rnorm(n.new)))
+        y <- drop(mu + crossprod(R.Sig, normal.sample[1, ]))
 
         #---------------------------------------------------------
         # 5. **Block Cholesky update** for the *full* kernel.
@@ -190,7 +197,7 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
         S <- K.xx - crossprod(U)  # = K.xx - U^T U
 
         # Cholesky of S:
-        R.S <- chol(S + diag(1e-10, n.new))  # upper triangular, dimension n.new x n.new
+        R.S <- chol(S)  # upper triangular, dimension n.new x n.new
 
         # Now we form the new big R block-matrix. For memory reasons,
         # we can store it all or keep it in some compact form. We will store
@@ -206,7 +213,7 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
       private$.cache <- rbind(private$.cache,
         data.table(x.mat, y = y))
 
-      y
+      y + private$.noise * normal.sample[2, ]
     }
   )
 )

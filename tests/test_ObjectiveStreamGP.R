@@ -188,14 +188,14 @@ test_that("ObjectiveStreamGP respects lengthscales", {
     lengthscales = 0.1,  # short lengthscale
     noise = 0,
     id = "gp_short",
-    seed = c(1L, 2L)
+    seed = c(2L, 3L)
   )
 
   obj.long <- ObjectiveStreamGP$new(
     lengthscales = 0.5,  # long lengthscale
     noise = 0,
     id = "gp_long",
-    seed = c(1L, 2L)
+    seed = c(2L, 3L)
   )
 
   x.test <- data.table(
@@ -332,4 +332,54 @@ test_that("Evaluating ObjectiveStreamGP one-by-one gives the same result as batc
   expect_identical(samples1.3d, rbind(samples2.1.3d, samples2.2.3d))
   expect_equal(values1.3d, c(values2.1.3d, values2.2.3d), tolerance = 1e-9)
   expect_equal(values1.3d, c(values3.1.3d, values3.2.3d, values3.3.3d), tolerance = 1e-9)
+})
+
+test_that("ObjectiveStreamGP noise scaling works as expected", {
+  obj.nonoise <- ObjectiveStreamGP$new(
+    lengthscales = 0.1,
+    noise = 0,
+    id = "gp",
+    seed = c(2L, 3L)
+  )
+  obj.lownoise <- ObjectiveStreamGP$new(
+    lengthscales = 0.1,
+    noise = 0.01,
+    id = "gp",
+    seed = c(2L, 3L)
+  )
+  obj.highnoise <- ObjectiveStreamGP$new(
+    lengthscales = 0.1,
+    noise = 1,
+    id = "gp",
+    seed = c(2L, 3L)
+  )
+  samples.nonoise <- obj.nonoise$sample(500)
+  samples.lownoise <- obj.lownoise$sample(500)
+  samples.highnoise <- obj.highnoise$sample(500)
+
+  values.nonoise.1 <- obj.nonoise$eval(samples.nonoise[1:400])
+  values.nonoise.2 <- obj.nonoise$eval(samples.nonoise[401:500])
+
+  values.lownoise.1 <- obj.lownoise$eval(samples.lownoise[1:400])
+  values.lownoise.2 <- obj.lownoise$eval(samples.lownoise[401:500])
+
+  values.highnoise.1 <- obj.highnoise$eval(samples.highnoise[1:400])
+  values.highnoise.2 <- obj.highnoise$eval(samples.highnoise[401:500])
+
+  expect_equal(sd(values.nonoise.1 - values.lownoise.1), 0.01, tolerance = 1e-4)
+  expect_equal(sd(values.nonoise.1 - values.highnoise.1), 1, tolerance = 1e-2)
+
+  expect_equal(sd(values.nonoise.2 - values.lownoise.2), 0.01, tolerance = 1e-3)
+  expect_equal(sd(values.nonoise.2 - values.highnoise.2), 1, tolerance = 1e-1)
+
+  expect_equal(mean(values.nonoise.1 - values.lownoise.1), 0, tolerance = 0.05 / sqrt(400))
+  expect_equal(mean(values.nonoise.1 - values.highnoise.1), 0, tolerance = 5 / sqrt(400))
+
+  expect_equal(mean(values.nonoise.2 - values.lownoise.2), 0, tolerance = 0.05 / sqrt(100))
+  expect_equal(mean(values.nonoise.2 - values.highnoise.2), 0, tolerance = 5 / sqrt(100))
+
+  # noise is just added to the values, so difference to no-noise-condition scales with `noise`
+  expect_equal((values.nonoise.1 - values.lownoise.1) * 100, (values.nonoise.1 - values.highnoise.1), tolerance = 1e-10)
+  expect_equal((values.nonoise.2 - values.lownoise.2) * 100, (values.nonoise.2 - values.highnoise.2), tolerance = 1e-10)
+
 })
