@@ -1,24 +1,52 @@
-# Objective based on sampling from a Gaussian process
-
+#' @title Objective Based on Sampling from a Gaussian Process
+#'
+#' @description
+#' This objective function samples from a Gaussian process with given parameters.
+#'
+#' The objective is always on a hypercube ranging from 0 to 1, but with configurable lengthscales.
+#' Available kernels are `"matern32"`, `"matern52"`, and `"se"` (squared exponential).
+#'
+#' @details
+#' This is a concrete class, currently not meant to be subclassed.
+#' @export
 ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
-  inherits = ObjectiveStreamActual,
+  inherit = ObjectiveStreamActual,
   public = list(
-    initialize = function(dimensions, lengthscales, noise, id, seed, kernel = "matern52") {
-      private$.dimensions <- assertInt(dimensions, lower = 1, tol = 0)
-      private$.lengthscales <- assertNumeric(lengthscales, lower = 0, finite = TRUE, any.missing = FALSE, len = dimensions)
+    #' @description
+    #' Initialize the objective function.
+    #' @param lengthscales (`numeric`) The lengthscales of the Gaussian process.
+    #'   This implicitly defines the number of dimensions.
+    #' @param noise (`numeric(1)`) The noise of the Gaussian process.
+    #' @param id (`character(1)`) The id of the objective function, used to identify the objective when printing.
+    #' @param seed (`integer(2)`) Seed used both to initialize the sample stream (first element) and the evaluation
+    #'   function (second element).
+    #' @param kernel (`character(1)`) The kernel of the Gaussian process.
+    #'   One of `"matern32"`, `"matern52"`, or `"se"` (squared exponential).
+    #'   Defaults to `"matern52"`.
+    initialize = function(lengthscales, noise, id, seed, kernel = "matern52") {
+      private$.lengthscales <- assertNumeric(lengthscales, lower = 0, finite = TRUE, any.missing = FALSE, min.len = 1)
+      private$.dimensions <- length(lengthscales)
       private$.noise <- assertNumber(noise, lower = 0, finite = TRUE)
       private$.kernel <- assertChoice(kernel, c("matern32", "matern52", "se"))
-      private$.cache <- data.table(matrix(nrow = 0, ncol = dimensions + 1))
-      setnames(private$.cache, c(sprintf("x.d%s", seq_len(dimensions)), "y"))
+      private$.cache <- data.table(matrix(nrow = 0, ncol = private$.dimensions + 1))
+      setnames(private$.cache, c(sprintf("x.d%s", seq_len(private$.dimensions)), "y"))
 
-      domain <- ps_replicate(ps(x = p_dbl(0, 1)), affixes = sprintf("d%s", seq_len(dimensions)), postfix = TRUE)
+      domain <- ps_replicate(
+        ps(x = p_dbl(0, 1)),
+        affixes = sprintf("d%s", seq_len(private$.dimensions)),
+        postfix = TRUE
+      )
       super$initialize(id, domain, minimize = TRUE, seed)
     }
   ),
   active = list(
+    #' @field dimensions (`integer(1)`) The number of dimensions of the Gaussian process.
     dimensions = function() private$.dimensions,
+    #' @field lengthscales (`numeric`) The lengthscales of the Gaussian process.
     lengthscales = function() private$.lengthscales,
+    #' @field noise (`numeric(1)`) The noise of the Gaussian process.
     noise = function() private$.noise,
+    #' @field kernel (`character(1)`) The kernel of the Gaussian process.
     kernel = function() private$.kernel
   ),
   private = list(
@@ -29,7 +57,8 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
     .cache = NULL,
     .cache.kernel = NULL,
 
-    computeKernel = function(X1, X2 = NULL) {
+    .computeKernel = function(X1, X2 = NULL) {
+      # computes the kernel matrix, either between X1 and X2 or between X1 and itself
       if (is.null(X2)) X2 <- X1
       n1 <- nrow(X1)
       n2 <- nrow(X2)
@@ -50,6 +79,8 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
     },
 
     .eval = function(x) {
+      # evaluates the objective function at the given points.
+      # Caches previous kernel matrix values, as well as previously evaluated points.
       x.mat <- as.matrix(x)
       n.new <- nrow(x.mat)
 
