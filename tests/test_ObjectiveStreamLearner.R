@@ -255,7 +255,7 @@ test_that("ObjectiveStreamLearner handles measure properties correctly", {
 
 test_that("ObjectiveStreamLearner handles parameter transformations", {
   lrn <- learner.tree.regr$clone(deep = TRUE)
-  lrn$param_set$values = list()
+  lrn$param_set$values <- list()
   rsmp <- rsmp("holdout", ratio = 0.5)
   msr <- msr("regr.mse")
 
