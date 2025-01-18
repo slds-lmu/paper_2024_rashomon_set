@@ -124,4 +124,3 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
     }
   )
 )
-

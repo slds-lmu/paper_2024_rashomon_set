@@ -5,17 +5,16 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
   public = list(
     initialize = function(id, domain, minimize, learner, search.grid.size, seed) {
       private$.search.grid.size <- assertCount(search.grid.size, positive = TRUE, tol = 0, coerce = TRUE)
-      super$initialize(id, domain, minimize, rashomon.epsilon = 0, rashomon.is.relative = FALSE, n.rashomon.samples = Inf, seed = seed)
+      super$initialize(id, domain, minimize, rashomon.epsilon = 0, rashomon.is.relative = FALSE,
+        n.rashomon.samples = Inf, seed = seed)
       private$.learner <- learner$clone(deep = TRUE)
     }
   ),
   active = list(
     search.grid.size = function() private$.search.grid.size,
     learner = function(rhs) {
-      if (!missing(rhs)) {
-        if (!identical(private$.learner, rhs)) {
-          stop("learner is read-only")
-        }
+      if (!missing(rhs) && !identical(private$.learner, rhs)) {
+        stop("learner is read-only")
       }
       private$.learner
     }
@@ -42,4 +41,3 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     }
   )
 )
-
