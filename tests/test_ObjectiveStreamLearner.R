@@ -281,3 +281,38 @@ test_that("ObjectiveStreamLearner handles parameter transformations", {
   expect_true(all(samples$cp >= 0 & samples$cp <= 1))
   expect_no_error(obj$eval(samples))
 })
+
+test_that("ObjectiveStreamLearner evaluation matches manual resampling", {
+  rsmp <- rsmp("holdout", ratio = 0.5)
+  msr <- msr("regr.mse")
+
+  # Instantiate resampling
+  rsmp$instantiate(task.bh)
+
+  obj <- ObjectiveStreamLearner$new(
+    learner = learner.tree.regr,
+    task = task.bh,
+    resampling = rsmp,
+    measure = msr,
+    seed = c(1L, 2L)
+  )
+
+  # Get some samples and their evaluations
+  samples <- obj$sample(3)
+  auto.results <- obj$eval(samples)
+
+  # Manually perform the same evaluations
+  manual.results <- vapply(seq_len(nrow(samples)), function(i) {
+    # Clone learner to avoid side effects
+    lrn <- learner.tree.regr$clone(deep = TRUE)
+    trafo <- lrn$param_set$search_space()$trafo
+    # Set parameters according to sample
+    lrn$param_set$values <- trafo(as.list(samples[i, -".id", with = FALSE]))
+    # Perform manual resampling
+    rr <- resample(task.bh, lrn, rsmp, store_models = FALSE)
+    # Get aggregated performance
+    rr$aggregate(msr)
+  }, numeric(1))
+
+  expect_identical(auto.results, manual.results)
+})
