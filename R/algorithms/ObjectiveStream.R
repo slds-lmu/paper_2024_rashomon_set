@@ -67,7 +67,7 @@ ObjectiveStream <- R6Class("ObjectiveStream",
       }
       table <- table[, self$domain$ids(), with = FALSE]
       for (i in which(self$domain$is_categ)) {
-        table[[i]] <- factor(table[[i]], levels = self$domain$levels[[i]])
+        set(table, j = i, value = factor(table[[i]], levels = self$domain$levels[[i]]))
       }
       private$.augmentTable(table)
     },
