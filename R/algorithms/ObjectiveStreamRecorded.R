@@ -39,7 +39,8 @@ ObjectiveStreamRecorded <- R6Class("ObjectiveStreamRecorded",
       table
     },
     .eval = function(x) {
-      rows <- assertIntegerish(x$.id, lower = 1, upper = nrow(private$.table), tol = 0, coerce = TRUE)
+      rows <- assertIntegerish(x$.id, lower = 1, upper = nrow(private$.table), any.missing = FALSE, tol = 0,
+        coerce = TRUE)
       private$.table[rows, private$.scorecol, with = FALSE][[1]]
     },
     .sample = function(n) {

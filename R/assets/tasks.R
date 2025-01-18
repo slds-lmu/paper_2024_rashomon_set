@@ -2,7 +2,6 @@
 task.bh <- tsk("boston_housing")
 task.bh$select(selector_invert(selector_cardinality_greater_than(2))(task.bh))
 
-
 task.gc <- tsk("german_credit")
 
 task.cs <- tsk("compas")
@@ -46,4 +45,4 @@ sample_synthetic_task <- function(n, seed = 1) {
 
 task.st <- sample_synthetic_task(10000)
 
-  
+

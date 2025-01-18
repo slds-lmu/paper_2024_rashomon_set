@@ -79,9 +79,10 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
     },
 
     .eval = function(x) {
-      # evaluates the objective function at the given points.
+      # Evaluates the GP at the given points.
+      # At this point, `x` is a `data.table` with numeric columns, as well as the `.id` column.
       # Caches previous kernel matrix values, as well as previously evaluated points.
-      x.mat <- as.matrix(x)
+      x.mat <- as.matrix(x[, -".id", with = FALSE])
       n.new <- nrow(x.mat)
 
       if (nrow(private$.cache) == 0) {
