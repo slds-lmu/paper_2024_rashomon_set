@@ -175,7 +175,7 @@ test_that("ObjectiveStream respects domain column order", {
   )
 
   samples <- obj$sample(3)
-  expect_identical(names(samples)[1:2], c("x2", "x1"))
+  expect_named(samples, c("x2", "x1", ".id"))
 })
 
 test_that("ObjectiveStream handles wrong eval column order", {
