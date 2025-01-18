@@ -39,3 +39,44 @@ test_that("All learners have a non-empty search space", {
   }
 })
 
+test_that("All learners can be resampled on all datasets", {
+  # Split into regression and classification tasks
+  regr.tasks <- list.tasks[vapply(list.tasks, function(t) t$task_type == "regr", logical(1))]
+  classif.tasks <- list.tasks[vapply(list.tasks, function(t) t$task_type == "classif", logical(1))]
+
+  # Create holdout resampling
+  holdout <- rsmp("holdout", ratio = 0.5)
+
+  # Function to test a single learner on a task
+  testLearner <- function(task, learner.name, learner) {
+    learner <- learner$clone(deep = TRUE)
+    config <- generate_design_grid(learner$param_set$search_space(), 1)$transpose()[[1]]
+    learner$param_set$set_values(.values = config)
+    rr <- expect_error(
+      resample(task, learner, holdout),
+      NA,
+      info = sprintf("%s learner %s failed on task %s",
+        task$task_type, learner.name, task$id)
+    )
+    measure <- if (task$task_type == "regr") measure.regr else measure.classif
+    expect_number(
+      rr$aggregate(measure),
+      info = sprintf("%s learner %s produced NA/non-scalar score on task %s",
+        task$task_type, learner.name, task$id)
+    )
+  }
+
+  # Test regression learners
+  for (task in regr.tasks) {
+    for (learner.name in names(list.learners.regr)) {
+      testLearner(task, learner.name, list.learners.regr[[learner.name]])
+    }
+  }
+
+  # Test classification learners
+  for (task in classif.tasks) {
+    for (learner.name in names(list.learners.classif)) {
+      testLearner(task, learner.name, list.learners.classif[[learner.name]])
+    }
+  }
+})
