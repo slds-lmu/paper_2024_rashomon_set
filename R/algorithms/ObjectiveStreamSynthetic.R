@@ -33,6 +33,7 @@ ObjectiveStreamSynthetic <- R6Class("ObjectiveStreamSynthetic",
   private = list(
     .objective = NULL,
     .eval = function(x) {
+      x <- x[, -".id", with = FALSE]
       vapply(seq_len(nrow(x)), function(i) {
         x.trafo <- self$domain$trafo(as.list(x[i, ]))
         self$objective(x.trafo)

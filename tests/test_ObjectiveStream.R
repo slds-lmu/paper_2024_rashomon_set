@@ -126,7 +126,7 @@ test_that("ObjectiveStream error handling works", {
   expect_error(obj$eval(data.table(wrong.col = 1)), "must include")
   expect_error(obj$getRow(0), "is not >= 1")
   expect_error(obj$getRow(4), "is not <= 3")
-  expect_error(obj$sample(-1), "must be >= 0")
+  expect_error(obj$sample(-1), "Must be >= 0")
 })
 
 test_that("ObjectiveStream categorical variables work", {

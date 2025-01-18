@@ -26,7 +26,7 @@ ObjectiveStreamLearner <- R6Class("ObjectiveStreamLearner",
         id = sprintf("lrn_%s_task_%s_rsmp_%s_msr_%s", learner$id, task$id, resampling$id, measure$id),
         domain = learner$param_set$search_space(), seed = NULL) {
       private$.learner <- learner$clone(deep = TRUE)
-      private$.learner$predict_type <- measure$predict_type
+      private$.learner$predict_type <- fcoalesce(measure$predict_type, learner$predict_type)
       private$.task <- task$clone(deep = TRUE)
       private$.resampling <- resampling$clone(deep = TRUE)
       private$.measure <- measure$clone(deep = TRUE)
