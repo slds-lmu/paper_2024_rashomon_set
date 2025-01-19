@@ -27,12 +27,28 @@
 #' * `tellYValues()`: provides those scores
 #'
 #' Concrete implementations must provide the private methods:
-#' * `.tellXSamples()`: Process a batch of scored configurations
-#' * `.askXSamples()`: Determine how many samples to request next
-#' * `.askYValues()`: Select specific configurations for scoring
-#' * `.tellYValues()`: Process scores for requested configurations
-#' * `.rashomonSamplesComplete()`: Count found Rashomon set members
-#' * `.getRashomonSamples()`: Retrieve the current Rashomon set
+#' * `.askXSamples()`: Determine how many samples to request next.
+#'    Should return `integer(1)`: the number of samples that should be given to `tellXSamples()`.
+#'    If this returns greater than 0, the next internal call will be to `.tellXSamples()` with precisely the number of
+#'    samples requested.
+#'    If this returns 0, the next internal call will be to `.askYValues()`.
+#' * `.tellXSamples()`: Process a batch of scored configurations.
+#'   Called with a `data.table` with columns `.id` and `.score`, as well as the (user-given) domain parameters.
+#'   The `.score` column will be `NA_real_` for configurations that have not been scored yet (the common case).
+#'   After this is called, the next call will be to `.askXValues()`.
+#' * `.askYValues()`: Select specific configurations for scoring.
+#'   Should return a `data.table` with column `.id`, as well as the domain parameters.
+#'   Rows should be a subset of the rows that were ever given to `.tellXSamples()`.
+#'   At least one row must be returned.
+#'   After this is called, the next call will be to `.tellYValues()`.
+#' * `.tellYValues()`: Process scores for requested configurations.
+#'   Called with a `data.table` with columns `.id` and `.score`.
+#'   Row IDs will be in the order in which they were requested by `.askYValues()`.
+#'   After this is called, the next call will be to `.askXValues()`.
+#' * `.rashomonSamplesComplete()`: Count found Rashomon set members.
+#' * `.getRashomonSamples()`: Retrieve the current Rashomon set.
+#'
+#' The base class does not take care of storing values given to `.tellXSamples()`.
 #'
 #' @section State Machine
 #'
@@ -303,6 +319,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       for (i in which(self$domain$is_categ)) {
         set(rdf, j = i, value = factor(rdf[[i]], levels = self$domain$levels[[i]]))
       }
+      private$.ask.y.id.order <- assertIntegerish(rdf$.id, tol = 0, any.missing = FALSE, unique = TRUE)
       private$.ask.y.buffer <- rdf
       private$.tell.y.buffer <- set(rdf[0], j = ".score", value = numeric(0))
       rdf
@@ -349,13 +366,16 @@ RashomonSampler <- R6Class("RashomonSampler",
         private$.tell.y.buffer <- tyb
         return(ayb)
       }
+      yido <- private$.ask.y.id.order
+      private$.ask.y.id.order <- NULL
       private$.ask.y.buffer <- NULL
       private$.tell.y.buffer <- NULL
       private$.ask.x.buffer <- NULL
       private$.tell.x.buffer <- NULL
 
-      withLocalSeed(private$.seed, private$.tellYValues(tyb))
-      invisible(self$askYValues())
+      withLocalSeed(private$.seed, private$.tellYValues(tyb[J(yido), on = ".id"]))
+      self$askXSamples()  # mandatory state transition
+      invisible(getNullTable(self$domain, include.id = TRUE))  # stay in ASKING.Y.PRELIMINARY state if necessary
     }
   ),
   active = list(
@@ -414,8 +434,11 @@ RashomonSampler <- R6Class("RashomonSampler",
     # Collects scores provided to tellYValues.
     # Reset to `NULL` when .tellYValues is called with a complete batch and set when askYValues is called in a state
     # where no X-samples are requested.
-    # Has columns `.id` and `.score`.
+    # Has columns of .ask.y.buffer plus .score.
     .tell.y.buffer = NULL,  # data.table | NULL
+    # Order of .id values returned by .askYValues.
+    # This is used to match the .id values in .tellYValues to the .id values in .askYValues.
+    .ask.y.id.order = NULL,  # integer | NULL
     # return number of samples to expect in .tellXSamples
     # Called at the very beginning, and every time .tellYValues() returns.
     .askXSamples = function() {

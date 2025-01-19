@@ -598,6 +598,8 @@ test_that("RashomonSampler transitions from ASKING.Y work", {
     x2 = c(0.7, 0.6)   # spurious values, should be ignored
   )
   remaining <- sampler$tellYValues(y.values.3)
+  expect_data_table(remaining, nrows = 0)  # ASKING.Y.PRELIMINARY state
+  remaining <- sampler$askYValues()
   expect_data_table(remaining, nrows = 1)
   expect_identical(remaining$.id, 3L)
   expect_identical(remaining$x1, sampler$next.y.samples$x1)
@@ -984,3 +986,57 @@ test_that("RashomonSampler tellXSamples handles scorecol correctly", {
     ignore.col.order = TRUE
   )
 })
+
+test_that("RashomonSampler tellYValues preserves askYValues order", {
+  sampler <- ColumnOrderRashomonSampler$new()
+  sampler$next.x.samples <- 0L
+
+  # Set up next.y.samples with specific order: 30, 10, 20
+  sampler$next.y.samples <- data.table(
+    .id = c(30L, 10L, 20L),
+    x1 = c(0.3, 0.1, 0.2),
+    x2 = c(0.6, 0.4, 0.5)
+  )
+
+  # Enter ASKING.Y state and get Y request
+  expect_identical(sampler$askXSamples(), 0L)
+  y.request <- sampler$askYValues()
+  expect_identical(y.request$.id, c(30L, 10L, 20L))
+
+  # Tell Y values in different order: 30, 20, 10
+  y.values <- data.table(
+    .id = c(30L, 20L, 10L),
+    .score = c(0.3, 0.2, 0.1)
+  )
+
+  sampler$tellYValues(y.values)
+
+  # Check that values arrived in original order (30, 10, 20)
+  expect_identical(sampler$last.y.told$.id, c(30L, 10L, 20L))
+  expect_identical(sampler$last.y.told$.score, c(0.3, 0.1, 0.2))
+
+
+  sampler$askXSamples()
+
+  sampler$next.x.samples <- 0L
+  sampler$next.y.samples <- data.table(
+    .id = c(3L, 1L, 2L),
+    x1 = c(0.3, 0.1, 0.2),
+    x2 = c(0.6, 0.4, 0.5)
+  )
+
+  y.request <- sampler$askYValues()
+  expect_identical(y.request$.id, c(3L, 1L, 2L))
+
+  # Tell Y values in reverse order
+  y.values <- data.table(
+    .id = c(2L, 1L, 3L),
+    .score = c(0.2, 0.1, 0.3)
+  )
+  sampler$tellYValues(y.values)
+
+  # Check that values arrived in original order (3, 1, 2)
+  expect_identical(sampler$last.y.told$.id, c(3L, 1L, 2L))
+  expect_identical(sampler$last.y.told$.score, c(0.3, 0.1, 0.2))
+})
+
