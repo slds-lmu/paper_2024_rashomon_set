@@ -32,20 +32,93 @@
 #'
 #' @section State Machine
 #'
-#' The class can be in states `INIT`, `ASKING.X(n)`, and `ASKING.Y(n)`.
+#' The class can be in states `INIT`, `ASKING.X(n)`, `ASKING.Y(m)`, and `TRANSITION`.
+#'
+#' The class starts in the `INIT` state and enters the `TRANSITION` state when `askXSamples()` (recommended) or
+#' `askYValues()` is called.
+#'
+#' The `TRANSITION` state is only conceptual and left before control is returned to the caller:
+#' Upon entering the state, `private$.askXSamples()` is called.
+#' If it returns a value `n` > 0, the class transitions to `ASKING.X(n)`.
+#' If it returns 0, the `ASKING.Y.PRELIMINARY` state is entered.
+#'
+#' In the `ASKING.Y.PRELIMINARY` state, `askYValues()` must be called by the user, which causes
+#' `private$.askYValues()` to be called.
+#' It returns a `data.table` with `m` rows, where `m` must be at least 1.
+#' The class transitions to `ASKING.Y(m)`.
+#' The `ASKING.Y.PRELIMINARY` state exists so that the user has control over when the (potentially costly)
+#' `private$.askYValues()` is called.
+#'
+#' The class transitions from `ASKING.X(n)` to `ASKING.X(n - k)` when `k` rows are provided by `tellXSamples()`.
+#' The class transitions from `ASKING.Y(m)` to `ASKING.Y(m - k)` when `k` rows are provided by `tellYValues()`.
+#'
+#' Whenever `ASKING.X(0)` or `ASKING.Y(0)` are entered, `private$.tellXSamples()` or `private$.tellYValues()` are
+#' called, respectively, and the `TRANSITION` state is entered.
+#'
+#' State overview:
 #'
 #' * `INIT`: The class is initialized in this state.
-#'   `askXSamples()` should be called to transition to `ASKING.X(n)`.
-#' * `ASKING.X(n)`: `private$.askXSamples()` is called when this is entered.
-#'   `tellXSamples()` should be called with at most `n` rows to transition to `ASKING.Y()`.
+#'   `askXSamples()` should be called to transition to `TRANSITION`
+#' * `TRANSITION`: The class is in this state when the user first interacts with the class after initialization
+#'   (`INIT`), or when `ASKING.X(0)` or `ASKING.Y(0)` were reached.
+#'   The state is immediately changed to `ASKING.X(n)` or `ASKING.Y(n)`, where `n` is the value of
+#'   `private$.askXSamples()` or `nrow(private$.askYValues())`, respectively (see description above).
+#' * `ASKING.X(n)`: `tellXSamples()` should be called with `k` rows, where `k` is at most `n`, to transition to
+#'    `ASKING.X(n - k)`.
 #'   `askYValues()` will always return an empty `data.table` in this state and `tellYValues()` will throw an error.
-#'   `private$.tellXSamples()` is called when this state is left.
-#' * `ASKING.Y(n)`: `private$.askYValues()` is called when this is entered and must return a `data.table` with at least
-#'    one row.
-#'   `tellYValues()` should be called with at most `n` rows to transition to `ASKING.X()`.
+#'   `private$.tellXSamples()` is called when `ASKING.X(0)` is entered, and the state transitions to `TRANSITION`.
+#' * `ASKING.Y.PRELIMINARY`: `askYValues()` should be called by the user, which causes
+#'   `private$.askYValues()` to be called and the state transitions to `ASKING.Y(m)`, where `m` is the number of rows
+#'   returned by `private$.askYValues()`.
+#'   `askXSamples()` will always return `0` in this state and both `tellXSamples()` and `tellYValues()` will throw an
+#'    error.
+#' * `ASKING.Y(m)`: `tellYValues()` should be called with `k` rows, where `k` is at most `m`, to transition to
+#'   `ASKING.Y(m - k)`.
 #'   `askXSamples()` will always return `0` in this state and `tellXSamples()` will throw an error.
-#'   `private$.tellYValues()` is called when this state is left.
+#'   `private$.tellYValues()` is called when `ASKING.Y(0)` is entered, and the state transitions to `TRANSITION`.
 #'
+#' State diagram:
+#'
+#' ```
+#'                       +-----------------------+
+#'                       |         INIT          |
+#'                       +-----------------------+
+#'                                   |
+#'           user calls              |
+#'  askXSamples() or askYValues() -> |
+#'                                   v
+#'                       +-----------------------+                       +-----------------------+
+#'                       |      TRANSITION       | if .askXSamples() = 0 | ASKING.Y.PRELIMINARY  |
+#'  .------------------->|         calls         |---------------------->|                       |
+#'  |                    |private$.askXSamples() |                       |                       |
+#'  |                    +-----------------------+                       +-----------------------+
+#'  |                                |                                               |
+#'  |                   if .askXSamples() > 0            user calls askYValues(),    |
+#'  |                                |                         which calls           |
+#'  |                                |                 private$.askYValues() => m -> |
+#'  |                                v                                               v
+#'  |                    +-----------------------+                       +-----------------------+
+#'  |                    |      ASKING.X(n)      |<--------.             |      ASKING.Y(m)      |<--------.
+#'  |                    +-----------------------+         |             +-----------------------+         |
+#'  |                                |                     |                         |                     |
+#'  |                user calls      |                     |         user calls      |                     |
+#'  |             tellXSamples(k) -> |                     |       tellYValues(k) -> |                     |
+#'  |                                v                     |                         v                     |
+#'  |                                +---------------------+                         +---------------------'
+#'  |                                |     if n < k: n <- n - k                      |     if m < k: m <- m - k
+#'  |                                |                                               |
+#'  |                          if n == k                                       if m == k
+#'  |                                |                                               |
+#'  |                                v                                               v
+#'  |                    +-----------------------+                       +-----------------------+
+#'  |                    |      ASKING.X(0)      |                       |      ASKING.Y(0)      |
+#'  |                    |         calls         |                       |         calls         |
+#'  |                    |private$.tellXSamples()|                       |private$.tellYValues() |
+#'  |                    +-----------------------+                       +-----------------------+
+#'  |                                |                                               |
+#'  |                                v                                               |
+#'  '--------------------------------+<----------------------------------------------'
+#' ```
 #' @export
 RashomonSampler <- R6Class("RashomonSampler",
   public = list(
@@ -129,7 +202,7 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' Request the next batch of configurations to evaluate.
     #' @return (`integer(1)`) Number of configurations requested
     askXSamples = function() {
-      if (!is.null(private$.ask.y.buffer)) return(0)
+      if (!is.null(private$.ask.y.buffer)) return(0L)
       if (!is.null(private$.ask.x.buffer)) {
         return(private$.ask.x.buffer)
       }
@@ -157,13 +230,14 @@ RashomonSampler <- R6Class("RashomonSampler",
     tellXSamples = function(x, scorecol = NULL) {
       if (!is.null(private$.ask.y.buffer)) stop("Cannot tell X when Y was asked and not answered.")
       ask.x.samples <- self$askXSamples()
-      assertDataFrame(x, max.rows = ask.x.samples - NROW(private$.tell.x.buffer))
+      assertDataFrame(x, max.rows = ask.x.samples)
       if (!nrow(x)) {
         return(ask.x.samples)
       }
       assertString(scorecol, null.ok = TRUE)
       assertDisjunct(scorecol, c(".id", self$domain$ids()))
-      assertNames(colnames(x), must.include = c(self$domain$ids(), scorecol))
+      required.cols <- c(self$domain$ids(), scorecol)
+      assertNames(colnames(x), must.include = required.cols)
 
       if (!is.data.table(x)) x <- as.data.table(x)
       if (!".id" %in% colnames(x)) {
@@ -178,15 +252,23 @@ RashomonSampler <- R6Class("RashomonSampler",
       }
       private$.told.x.samples <- private$.told.x.samples + nrow(x)
 
-      private$.tell.x.buffer <- rbind(private$.tell.x.buffer, x, use.names = TRUE)
-      if (nrow(private$.tell.x.buffer) >= ask.x.samples) {
-        assertTRUE(nrow(private$.tell.x.buffer) == ask.x.samples)
+      x <- x[, c(self$domain$ids(), ".id", ".score"), with = FALSE]
+
+      private$.ask.x.buffer <- ask.x.samples - nrow(x)
+      if (is.null(private$.tell.x.buffer)) {
+        private$.tell.x.buffer <- copy(x)
+      } else {
+        private$.tell.x.buffer <- rbind(private$.tell.x.buffer, x, use.names = TRUE)
+      }
+
+      if (private$.ask.x.buffer <= 0) {
+        assertTRUE(private$.ask.x.buffer == 0)
         x <- private$.tell.x.buffer
         private$.tell.x.buffer <- NULL
 
         withLocalSeed(private$.seed, private$.tellXSamples(x))
+        private$.ask.x.buffer <- NULL
       }
-      private$.ask.x.buffer <- NULL
       self$askXSamples()
     },
 
@@ -198,6 +280,11 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' and only the remaining configurations still need to be provided.
     #' Therefore, if `askYValues()` is called again at this point, it will return the remaining configurations.
     #' @return (`data.table`) Configurations to evaluate
+    #' @note
+    #' The returned `data.table` "belongs" to the sampler and should not be modified by reference by the caller.
+    #' In fact, the `tellYValues()` function may modify the returned `data.table` object in place.
+    #' Therefore, if the caller needs the returned `data.table` object after `tellYValues()` has been called,
+    #' it must make a deep copy of it using `copy()`.
     askYValues = function() {
       if (self$askXSamples() != 0) return(getNullTable(self$domain, include.id = TRUE))
       if (!is.null(private$.ask.y.buffer)) {
@@ -260,7 +347,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       private$.tell.x.buffer <- NULL
 
       withLocalSeed(private$.seed, private$.tellYValues(ayb))
-      invisible(getNullTable(self$domain, include.id = TRUE))
+      invisible(self$askYValues())
     }
   ),
   active = list(
@@ -288,7 +375,7 @@ RashomonSampler <- R6Class("RashomonSampler",
         assertCount(rhs, tol = 0)
         if (rhs != private$.n.rashomon.samples) {
           if (!is.null(private$.tell.x.buffer) || !is.null(private$.tell.y.buffer)) {
-            stop("Cannot change n.rashomon.samples after samples have been asked (x) or incompletely told (x, y)")
+            stop("Cannot change n.rashomon.samples after values have been asked or samples / values have been incompletely told")  # nolint
           }
           private$.ask.x.buffer <- NULL
           private$.n.rashomon.samples <- rhs
