@@ -300,7 +300,7 @@ RashomonSampler <- R6Class("RashomonSampler",
         set(rdf, j = i, value = factor(rdf[[i]], levels = self$domain$levels[[i]]))
       }
       private$.ask.y.buffer <- rdf
-      private$.tell.y.buffer <- set(rdf[, ".id", with = FALSE], j = ".score", value = NA_real_)
+      private$.tell.y.buffer <- set(rdf[0], j = ".score", value = numeric(0))
       rdf
     },
 
@@ -319,34 +319,38 @@ RashomonSampler <- R6Class("RashomonSampler",
     #'   Defaults to `".score"`.
     #' @return (`data.table`) Additional configurations to evaluate, if any
     tellYValues = function(y, scorecol = ".score") {
-      assertDataFrame(y, min.rows = 1)
+      assertDataFrame(y)
+      if (!nrow(y)) return(private$.ask.y.buffer)
       assertChoice(scorecol, colnames(y))
       assertDisjunct(scorecol, c(".id", self$domain$ids()))
       assertNames(colnames(y), must.include = ".id")
-      y <- data.table(.id = y$.id, score.new = y[[scorecol]])
+      y <- data.table(.id = y$.id, .score = y[[scorecol]])
       tyb <- private$.tell.y.buffer
+      ayb <- private$.ask.y.buffer
       if (is.null(tyb)) {
         stop("Cannot tell Y when no Y was asked for.")
       }
-      if (nrow(y[!tyb, on = ".id"]) || !all(is.na(tyb[y, .score, on = ".id"]))) {
+      if (nrow(y[!ayb, on = ".id"])) {
         stop("Gave .id values that were not asked for.")
       }
-      tyb <- private$.tell.y.buffer[y, .score := score.new, on = ".id"]
-      still.asking <- tyb[is.na(.score), ".id", with = FALSE]
-      if (nrow(still.asking)) {
-        private$.ask.y.buffer <- private$.ask.y.buffer[still.asking, on = ".id"]
-        return(private$.ask.y.buffer)
+
+      tyb <- rbind(
+        tyb,
+        ayb[y, on = ".id"],
+        use.names = TRUE
+      )
+      ayb <- ayb[!y, on = ".id"]
+      if (nrow(ayb)) {
+        private$.ask.y.buffer <- ayb
+        private$.tell.y.buffer <- tyb
+        return(ayb)
       }
-      ayb <- private$.ask.y.buffer
-      # we are guaranteed that `ayb` does not contain a `.score` column at this point
-      assertDisjunct(".score", colnames(ayb))
-      ayb[tyb, .score := .score, on = ".id"]
       private$.ask.y.buffer <- NULL
       private$.tell.y.buffer <- NULL
       private$.ask.x.buffer <- NULL
       private$.tell.x.buffer <- NULL
 
-      withLocalSeed(private$.seed, private$.tellYValues(ayb))
+      withLocalSeed(private$.seed, private$.tellYValues(tyb))
       invisible(self$askYValues())
     }
   ),
