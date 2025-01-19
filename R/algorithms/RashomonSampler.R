@@ -227,7 +227,7 @@ RashomonSampler <- R6Class("RashomonSampler",
         return(private$.ask.x.buffer)
       }
       axb <- withLocalSeed(private$.seed, private$.askXSamples())
-      private$.ask.x.buffer <- assertCount(axb, tol = 0)
+      private$.ask.x.buffer <- assertCount(axb, tol = 0, coerce = TRUE)
       private$.ask.x.buffer
     },
 
