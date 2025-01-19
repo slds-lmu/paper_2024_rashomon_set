@@ -65,7 +65,7 @@ ObjectiveStream <- R6Class("ObjectiveStream",
         assertDataFrame(table, nrows = n)
         assertNames(colnames(table), must.include = self$domain$ids())
       }
-      table <- table[, self$domain$ids(), with = FALSE]
+      table <- table[, self$domain$ids(), with = FALSE]  # .id is added by private$.augmentTable()
       for (i in which(self$domain$is_categ)) {
         set(table, j = i, value = factor(table[[i]], levels = self$domain$levels[[i]]))
       }

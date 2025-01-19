@@ -25,7 +25,7 @@ RashomonSamplerRandom <- R6Class("RashomonSamplerRandom",
       if (is.null(private$.archive)) private$.initial.sample.size else private$.batchsize
     },
     .tellXSamples = function(x) {
-      if (any(is.na(x$.score))) {
+      if (anyNA(x$.score)) {
         private$.xcoord <- x
       } else {
         private$.archive <- rbind(private$.archive, x)
