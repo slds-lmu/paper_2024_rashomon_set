@@ -16,6 +16,10 @@
 #' This pattern, while more complex to implement, allows for more flexibility on the user side and makes asynchonous
 #' algorithms more straightforward.
 #'
+#' Note that the `RashomonSampler` does not propose configurations to evaluate.
+#' Instead it relies on the caller to supply propositions.
+#' The point of the `RashomonSampler` is, instead, to decide whether a configuration should be evaluated.
+#'
 #' The following methods are used for sampling and updating the state:
 #' * `askXSamples()`: get the number of configurations (X-values) to sample
 #' * `tellXSamples()`: provide the sampled configurations

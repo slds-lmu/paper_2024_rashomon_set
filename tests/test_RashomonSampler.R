@@ -753,4 +753,234 @@ test_that("RashomonSampler RNG state is independent", {
   expect_identical(sampler1$rng.values, sampler4$rng.values)  # inside RNG state same as sampler1
 })
 
+# Sampler that tracks column orders and content for testing
+ColumnOrderRashomonSampler <- R6Class("ColumnOrderRashomonSampler",
+  inherit = RashomonSampler,
+  public = list(
+    initialize = function() {
+      super$initialize(
+        id = "colorder",  # hardcoded test value
+        domain = test.domain,  # hardcoded test value (defined at file level)
+        minimize = TRUE,  # hardcoded test value
+        rashomon.epsilon = 0.1,  # hardcoded test value
+        rashomon.is.relative = FALSE,  # hardcoded test value
+        seed = 1L,  # hardcoded test value
+        n.rashomon.samples = 10L  # hardcoded test value
+      )
+      private$.state <- "asking.x"
+      private$.next.x.samples <- 3L
+      private$.next.y.samples <- data.table(
+        .id = 1:2,
+        x1 = 0.5,
+        x2 = 0.6,
+        boguscol = "ignore"  # should be ignored by public interface
+      )
+      private$.last.x.told <- NULL
+      private$.last.y.told <- NULL
+    }
+  ),
+  active = list(
+    next.x.samples = function(val) {
+      if (!missing(val)) private$.next.x.samples <- val
+      private$.next.x.samples
+    },
+    next.y.samples = function(val) {
+      if (!missing(val)) private$.next.y.samples <- val
+      private$.next.y.samples
+    },
+    last.x.told = function() private$.last.x.told,
+    last.y.told = function() private$.last.y.told
+  ),
+  private = list(
+    .state = NULL,
+    .next.x.samples = NULL,
+    .next.y.samples = NULL,
+    .last.x.told = NULL,
+    .last.y.told = NULL,
+    .askXSamples = function() {
+      if (private$.state == "asking.x") private$.next.x.samples else 0L
+    },
+    .tellXSamples = function(x) {
+      private$.last.x.told <- copy(x)  # deep copy to avoid modification
+      private$.state <- "asking.y"
+    },
+    .askYValues = function() {
+      private$.next.y.samples
+    },
+    .tellYValues = function(y) {
+      private$.last.y.told <- copy(y)  # deep copy to avoid modification
+      private$.state <- "asking.x"
+    }
+  )
+)
 
+test_that("RashomonSampler column orders are predictable", {
+  # Test tellXSamples column order
+  sampler1 <- ColumnOrderRashomonSampler$new()
+  sampler2 <- ColumnOrderRashomonSampler$new()
+
+  # Enter ASKING.X state
+  expect_identical(sampler1$askXSamples(), 3L)
+  expect_identical(sampler2$askXSamples(), 3L)
+
+  # Tell X samples with different column orders and extra columns
+  x.samples.1 <- data.table(
+    x2 = c(0.4, 0.5, 0.6),
+    .id = 1:3,
+    x1 = c(0.1, 0.2, 0.3),
+    extra = letters[1:3]
+  )
+  x.samples.2 <- data.table(
+    x1 = c(0.1, 0.2, 0.3),
+    extra2 = LETTERS[1:3],
+    .id = 1:3,
+    x2 = c(0.4, 0.5, 0.6),
+    .score = c(0.7, 0.8, 0.9)  # should be ignored
+  )
+
+  sampler1$tellXSamples(x.samples.1)
+  sampler2$tellXSamples(x.samples.2)
+
+  # Check that private$.tellXSamples got same columns in same order
+  expect_identical(names(sampler1$last.x.told), names(sampler2$last.x.told))  # nolint
+  # Check that exactly the expected columns are present
+  expect_identical(sort(names(sampler1$last.x.told)), sort(c(".id", ".score", test.domain$ids())))
+
+  # Test askYValues column order
+  y.request.1 <- sampler1$askYValues()
+  y.request.2 <- sampler2$askYValues()
+
+  # Check that public askYValues returns same columns in same order
+  expect_identical(names(y.request.1), names(y.request.2))  # nolint
+  # Check that exactly the expected columns are present
+  expect_identical(sort(names(y.request.1)), sort(c(".id", test.domain$ids())))
+  expect_false("boguscol" %in% names(y.request.1))
+
+
+  # Test tellYValues column order with different scorecol
+  y.values.1 <- data.table(
+    x2 = c(0.4, 0.5),  # spurious, should be ignored
+    .id = 1:2,
+    myscore = c(0.1, 0.2),
+    x1 = c(0.1, 0.2)   # spurious, should be ignored
+  )
+  y.values.2 <- data.table(
+    x1 = c(0.1, 0.2),   # spurious, should be ignored
+    otherscore = c(0.1, 0.2),
+    .id = 1:2,
+    x2 = c(0.4, 0.5)    # spurious, should be ignored
+  )
+
+  sampler1$tellYValues(y.values.1, scorecol = "myscore")
+  sampler2$tellYValues(y.values.2, scorecol = "otherscore")
+
+  # Check that private$.tellYValues got same columns in same order
+  expect_identical(names(sampler1$last.y.told), names(sampler2$last.y.told))  # nolint
+  # Check that exactly the expected columns are present
+  expect_identical(sort(names(sampler1$last.y.told)), sort(c(".id", ".score", test.domain$ids())))
+
+  expect_identical(sampler1$last.y.told$.score, y.values.1[sampler1$last.y.told, myscore, on = ".id"])
+  expect_identical(sampler2$last.y.told$.score, y.values.2[sampler2$last.y.told, otherscore, on = ".id"])
+
+  # Test column order consistency across multiple cycles
+  sampler1$askXSamples()  # rotate back to ASKING.X
+  sampler1$tellXSamples(x.samples.1[, 4:1, with = FALSE])  # second cycle
+  # note sampler2 still has same order as before
+  expect_identical(names(sampler1$last.x.told), names(sampler2$last.x.told))  # nolint
+
+  sampler1$askYValues()
+  # second cycle
+  sampler1$tellYValues(setnames(y.values.1[, 4:1, with = FALSE], "myscore", "myscore2"), scorecol = "myscore2")
+  expect_identical(names(sampler1$last.y.told), names(sampler2$last.y.told))  # nolint
+
+})
+
+test_that("RashomonSampler tellXSamples handles scorecol correctly", {
+  sampler <- ColumnOrderRashomonSampler$new()
+  sampler$next.x.samples <- 2L
+  expect_identical(sampler$askXSamples(), 2L)  # enter ASKING.X(4)
+
+  # Error on non-existing scorecol
+  x.samples.1 <- data.table(.id = 1L, x1 = 0.1, x2 = 0.2)
+  expect_error(
+    sampler$tellXSamples(x.samples.1, scorecol = "nonexistent"),
+    "but is missing elements.*'nonexistent'"
+  )
+
+  # Existing scorecol works
+  x.samples.2 <- data.table(
+    .id = 1:2,
+    x1 = c(0.1, 0.2),
+    x2 = c(0.3, 0.4),
+    myscore = c(0.5, 0.6)
+  )
+  remaining <- sampler$tellXSamples(x.samples.2, scorecol = "myscore")
+  expect_identical(remaining, 0L)
+  expect_identical(sampler$last.x.told$.score, x.samples.2$myscore)
+
+  # Incomplete batch without score, followed by batch with score
+  sampler <- ColumnOrderRashomonSampler$new()
+  sampler$next.x.samples <- 4L
+  sampler$askXSamples()  # enter ASKING.X(4)
+
+  x.samples.3 <- data.table(
+    .id = 1:2,
+    x1 = c(0.1, 0.2),
+    x2 = c(0.3, 0.4)
+  )
+  remaining <- sampler$tellXSamples(x.samples.3)  # no scorecol
+  expect_identical(remaining, 2L)
+  expect_true(isInAskingXState(sampler, 2L))
+
+  x.samples.4 <- data.table(
+    .id = 3:4,
+    x1 = c(0.5, 0.6),
+    x2 = c(0.7, 0.8),
+    score2 = c(0.9, 1.0)
+  )
+  remaining <- sampler$tellXSamples(x.samples.4, scorecol = "score2")
+  expect_identical(remaining, 0L)
+  expect_equal(
+    sampler$last.x.told,
+    data.table(
+      .id = 1:4,
+      x1 = c(0.1, 0.2, 0.5, 0.6),
+      x2 = c(0.3, 0.4, 0.7, 0.8),
+      .score = c(NA_real_, NA_real_, 0.9, 1.0)
+    ),
+    ignore.col.order = TRUE
+  )
+
+  # Incomplete batch with score, followed by batch without score
+  sampler <- ColumnOrderRashomonSampler$new()
+  sampler$next.x.samples <- 4L
+  sampler$askXSamples()  # enter ASKING.X(4)
+
+  x.samples.5 <- data.table(
+    .id = 1:2,
+    x1 = c(0.1, 0.2),
+    x2 = c(0.3, 0.4),
+    score3 = c(0.5, 0.6)
+  )
+  remaining <- sampler$tellXSamples(x.samples.5, scorecol = "score3")
+  expect_identical(remaining, 2L)
+  expect_true(isInAskingXState(sampler, 2L))
+
+  x.samples.6 <- data.table(
+    .id = 3:4,
+    x1 = c(0.7, 0.8),
+    x2 = c(0.9, 1.0)
+  )
+  remaining <- sampler$tellXSamples(x.samples.6)  # no scorecol
+  expect_identical(remaining, 0L)
+  expect_equal(
+    sampler$last.x.told,
+    data.table(
+      .id = 1:4,
+      x1 = c(0.1, 0.2, 0.7, 0.8),
+      x2 = c(0.3, 0.4, 0.9, 1.0),
+      .score = c(0.5, 0.6, NA_real_, NA_real_)
+    ),
+    ignore.col.order = TRUE
+  )
+})
