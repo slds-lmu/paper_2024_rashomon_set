@@ -250,4 +250,8 @@ test_that("RashomonSamplerOptimize handles first point selection correctly", {
   )
   expect_data_table(y.request, nrows = 1)
   expect_identical(x.samples[J(y.request$.id), x, on = ".id"], y.request$x)
+
+  expect_identical(sampler$rashomonSamplesComplete(), 0L)
+  expect_data_table(sampler$getRashomonSamples(), nrows = 0)
+  expect_names(names(sampler$getRashomonSamples()), permutation.of = c(".id", "x", ".score"))
 })
