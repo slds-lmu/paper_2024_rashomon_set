@@ -190,35 +190,6 @@ RashomonSampler <- R6Class("RashomonSampler",
     },
 
     #' @description
-    #' Augment the sampler with pre-evaluated configurations.
-    #' @param x (`data.frame`) Configurations with their scores
-    #' @param scorecol (`character(1)`) Name of the column containing scores
-    #' @return (`data.frame`) Input configurations, invisibly
-    augmentXYSamples = function(x, scorecol = "score") {
-      # TODO: not sure if this is a good idea
-      if (!is.null(private$.tell.x.buffer)) stop("Cannot augment X when X request was already partially answered.")
-      if (!is.null(private$.ask.y.buffer)) stop("Cannot augment X when Y was asked and not answered.")
-      if (self$askXSamples() == 0) stop("Cannot augment X when no X requested.")
-
-      assertDataFrame(x)
-      assertChoice(scorecol, colnames(x))
-      assertDisjunct(scorecol, c(".id", self$domain$ids()))
-      assertNames(colnames(x), must.include = self$domain$ids())
-      if (!nrow(x)) return(invisible(x))
-
-      x <- as.data.table(x)
-      if (!".id" %in% colnames(x)) {
-        # either accept the user's ids or generate new ones
-        x$.id <- seq.int(private$.told.x.samples + 1, private$.told.x.samples + nrow(x))
-      }
-      private$.told.x.samples <- private$.told.x.samples + nrow(x)
-
-      xy <- cbind(data.table(.id = x$.id, .score = x[[scorecol]]), x[, self$domain$ids(), with = FALSE])
-      private$.augmentXYSamples(xy)
-      invisible(x)
-    },
-
-    #' @description
     #' Request the next batch of configurations to evaluate.
     #' @return (`integer(1)`) Number of configurations requested
     askXSamples = function() {
@@ -468,10 +439,6 @@ RashomonSampler <- R6Class("RashomonSampler",
     # Get a table with codomain$ids(), .id, and .score
     # May be called in any state.
     .getRashomonSamples = function() {
-      stop("Not implemented")
-    },
-    # not yet fully implemented / designed
-    .augmentXYSamples = function(xy) {
       stop("Not implemented")
     }
   )
