@@ -121,6 +121,18 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     .tellYValues = function(y) {
       row <- match(y$.id, private$.search.grid$.id)
       set(private$.search.grid, i = row, j = ".score", value = y$.score)
+    },
+    .getRashomonSamples = function() {
+      score <- private$.search.grid$.score
+      if (private$minimize) {
+        optimum <- which.min(score)
+      } else {
+        optimum <- which.max(score)
+      }
+      private$.search.grid[optimum, ]
+    },
+    .rashomonSamplesComplete = function() {
+      if (any(!is.na(private$.search.grid$.score))) 1L else 0L
     }
   )
 )

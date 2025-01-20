@@ -63,34 +63,11 @@ RashomonSamplerRandom <- R6Class("RashomonSamplerRandom",
       private$.xcoord <- NULL
     },
     .getRashomonSamples = function() {
-      indices <- private$.getRashomonIndices()
+      indices <- private$.getRashomonIndices(private$.archive$.score)
       private$.archive[indices, ]
     },
     .rashomonSamplesComplete = function() {
-      sum(private$.getRashomonIndices())
-    },
-    .getRashomonIndices = function() {
-      if (!nrow(private$.archive)) {
-        return(integer(0))
-      }
-      scores <- private$.archive$.score
-      epsilon <- self$rashomon.epsilon
-      if (!private$.minimize) {
-        scores <- -scores
-        if (self$rashomon.is.relative) {
-          epsilon <- -epsilon
-        }
-      }
-      optimum <- min(scores)
-      if (self$rashomon.is.relative) {
-        cutoff <- optimum * (1 + epsilon)
-        if (cutoff < optimum) {
-          stop("rashomon.is.relative does not work for negative scores")
-        }
-      } else {
-        cutoff <- optimum + epsilon
-      }
-      scores <= cutoff
+      length(private$.getRashomonIndices(private$.archive$.score))
     }
   )
 )

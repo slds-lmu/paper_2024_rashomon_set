@@ -440,6 +440,33 @@ RashomonSampler <- R6Class("RashomonSampler",
     # May be called in any state.
     .getRashomonSamples = function() {
       stop("Not implemented")
+    },
+    # Helper function to get the indices of the Rashomon set from given scores,
+    # assuming that the optimum in the scores is the reference performance.
+    .getRashomonIndices = function(scorevector) {
+      assertNumeric(scorevector, any.missing = FALSE, finite = TRUE)
+      if (!length(scorevector)) {
+        return(integer(0))
+      }
+      scores <- scorevector
+      epsilon <- self$rashomon.epsilon
+      if (!self$minimize) {
+        scores <- -scores
+        if (self$rashomon.is.relative) {
+          epsilon <- -epsilon
+        }
+      }
+      optimum <- min(scores)
+      if (self$rashomon.is.relative) {
+        cutoff <- optimum * (1 + epsilon)
+        if (cutoff < optimum) {
+          stop("rashomon.is.relative does not work for negative scores")
+        }
+      } else {
+        cutoff <- optimum + epsilon
+      }
+      which(scores <= cutoff)
     }
   )
 )
+
