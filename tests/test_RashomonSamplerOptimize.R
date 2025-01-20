@@ -24,10 +24,8 @@ initializeSampler <- function(aqf, minimize, learner) {
   )
 
   # Initial samples with known scores
-  x.samples.1.scores <- if (minimize) x.samples.1$.score else -x.samples.1$.score
-  x.samples.init <- copy(x.samples.1)
-  x.samples.init$.score <- x.samples.1.scores
-  sampler$tellXSamples(x.samples.init, scorecol = ".score")
+  x.samples.1$.score <- if (minimize) x.samples.1$.score else -x.samples.1$.score
+  sampler$tellXSamples(x.samples.1, scorecol = ".score")
 
   # search grid with unknown scores
   sampler$tellXSamples(x.samples.2)
@@ -136,7 +134,7 @@ test_that("RashomonSamplerOptimize works for all acquisition functions", {
 })
 
 test_that("RashomonSamplerOptimize handles optimization correctly", {
-  func <- function(x) x$x^2  # simple quadratic with minimum at 0
+  func <- function(x, minimize = TRUE) if (minimize) x$x^2 else -x$x^2  # simple quadratic with minimum at 0
   learner <- lrn("regr.km", predict_type = "se")$encapsulate("evaluate",
     lrn("regr.featureless", predict_type = "se"))
 
@@ -162,7 +160,7 @@ test_that("RashomonSamplerOptimize handles optimization correctly", {
     expect_identical(x.samples.2[J(y.request$.id), x, on = ".id"], y.request$x)
 
     # Evaluate new point
-    y.request$.score <- func(list(x = y.request$x))
+    y.request$.score <- func(list(x = y.request$x), minimize)
     sampler$tellYValues(y.request)
 
     # Get next point to evaluate
@@ -173,7 +171,7 @@ test_that("RashomonSamplerOptimize handles optimization correctly", {
     expect_false(y.request.2$x == y.request$x)
 
     # Evaluate new point
-    y.request.2$.score <- func(list(x = y.request.2$x))
+    y.request.2$.score <- func(list(x = y.request.2$x), minimize)
     sampler$tellYValues(y.request.2)
 
     # Get next point to evaluate
@@ -184,17 +182,31 @@ test_that("RashomonSamplerOptimize handles optimization correctly", {
     expect_false(y.request.3$x %in% c(y.request$x, y.request.2$x))
 
     # Evaluate new point
-    y.request.3$.score <- func(list(x = y.request.3$x))
+    y.request.3$.score <- func(list(x = y.request.3$x), minimize)
+    sampler$tellYValues(y.request.3)
 
     values.known <- rbind(y.request, y.request.2, y.request.3)
 
-    rbind(x.samples.1, values.known, use.names = TRUE, fill = TRUE)
+    x.samples.1$.score <- if (minimize) x.samples.1$.score else -x.samples.1$.score
+    list(
+      result = rbind(x.samples.1, values.known, use.names = TRUE, fill = TRUE),
+      sampler = sampler
+    )
   }
 
   for (do.minimize in c(TRUE, FALSE)) {
     for (i in seq_len(nrow(aqfs))) {
       aqf <- aqfs$aqf[[i]]
-      results <- doOptimize(aqf, do.minimize)
+      rl <- doOptimize(aqf, do.minimize)
+      results <- rl$result
+      sampler <- rl$sampler
+      expect_identical(sampler$rashomonSamplesComplete(), 1L)
+      optimum <- sampler$getRashomonSamples()
+      expect_equal(
+        results[.score == if (do.minimize) min(.score) else max(.score)][optimum[, .(.id)], on = ".id"],
+        optimum,
+        ignore.col.order = TRUE
+      )
       if (!aqfs$does.optimize[i]) {
         # if we don't optimize, we can't make any assumptions about the result,
         # but we still run the optimization to make sure no errors happen.

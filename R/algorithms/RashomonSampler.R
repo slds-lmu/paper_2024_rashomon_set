@@ -230,7 +230,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       required.cols <- c(self$domain$ids(), scorecol)
       assertNames(colnames(x), must.include = required.cols)
 
-      if (!is.data.table(x)) x <- as.data.table(x)
+      x <- as.data.table(x)  # make a copy so we can modify x in-place
       if (!".id" %in% colnames(x)) {
         # either accept the user's ids or generate new ones
         x$.id <- seq.int(private$.told.x.samples + 1, private$.told.x.samples + nrow(x))

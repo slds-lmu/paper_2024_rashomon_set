@@ -61,7 +61,7 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
       }
     },
     .tellXSamples = function(x) {
-      private$.search.grid <- x
+      private$.search.grid <- copy(x)
     },
     .askYValues = function() {
       # Split into known and unknown points
@@ -123,7 +123,7 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     },
     .getRashomonSamples = function() {
       score <- private$.search.grid$.score
-      if (private$minimize) {
+      if (self$minimize) {
         optimum <- which.min(score)
       } else {
         optimum <- which.max(score)
