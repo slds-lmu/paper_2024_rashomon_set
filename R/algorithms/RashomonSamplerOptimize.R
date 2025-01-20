@@ -94,8 +94,7 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
       # Get mean and sd predictions
       mean.pred <- assertNumeric(pred.unknown$response, len = nrow(grid.unknown), any.missing = FALSE, finite = TRUE,
         .var.name = "mean.pred made by learner")
-      sd.pred <- assertNumeric(pred.unknown$se, len = nrow(grid.unknown), any.missing = FALSE, finite = TRUE,
-        .var.name = "sd.pred made by learner")
+      sd.pred <- assertNumeric(pred.unknown$se, len = nrow(grid.unknown), finite = TRUE, .var.name = "sd.pred made by learner")
 
       # If minimizing, keep as is. If maximizing, negate means
       multiplier <- 1
@@ -111,8 +110,11 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
         sd = sd.pred,
         known.y = grid.known$.score * multiplier,
         known.y.mean = pred.known$response * multiplier,
-        known.y.sd = pred.known$se * multiplier
+        known.y.sd = pred.known$se
       )
+
+      assertNumeric(acq.values, len = nrow(grid.unknown), any.missing = FALSE, finite = TRUE,
+        .var.name = "acquisition function result")
 
       # Return the point with minimum acquisition value
       row <- which.min(acq.values)
