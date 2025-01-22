@@ -236,16 +236,15 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
       private$.samplers[[private$.sampler.index]]$rashomonSamplesComplete()
     },
     .switchToNextSampler = function() {
-      while (private$.known.y.count <= private$.ask.y.each[[private$.sampler.index]]) {
-        private$.sampler.index <- private$.sampler.index + 1
+      while (private$.known.y.count >= private$.ask.y.each[[private$.sampler.index]]) {
+        private$.sampler.index <- private$.sampler.index + 1L
       }
-      sampler.next <- private$.samplers[[private$.sampler.index]]
       private$.table.cache <- private$.table.cache[order(is.na(.score))]  # put rows with known scores first
       private$.cache.index <- 0L
       private$.feedCacheToSampler()
       if (private$.cache.index < private$.known.y.count) {
         stop(sprintf("Sampler %s askXSamples() returned 0 even though it was only supplied with complete samples",
-          sampler.next$id
+          private$.samplers[[private$.sampler.index]]$id
         ))
       }
       private$.still.caching <- length(private$.samplers) > private$.sampler.index
@@ -255,12 +254,13 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
       }
     },
     .feedCacheToSampler = function() {
+      sampler.current <- private$.samplers[[private$.sampler.index]]
       max.cache.index <- nrow(private$.table.cache)
-      while (sampler.next$askXSamples() != 0 && private$.cache.index < max.cache.index) {
-        asking <- sampler.next$askXSamples()
+      while (sampler.current$askXSamples() != 0 && private$.cache.index < max.cache.index) {
+        asking <- sampler.current$askXSamples()
         next.cache.index <- min(private$.cache.index + asking, max.cache.index)
-        rows <- seq.int(private$.cache.index + 1, next.cache.index)
-        sampler.next$tellXSamples(private$.table.cache[rows, , nomatch = NULL])
+        rows <- seq.int(private$.cache.index + 1L, next.cache.index)
+        sampler.current$tellXSamples(private$.table.cache[rows, , nomatch = NULL], scorecol = ".score")
         private$.cache.index <- next.cache.index
       }
     }
