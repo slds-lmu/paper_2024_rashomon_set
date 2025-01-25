@@ -131,7 +131,7 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
       private$.search.grid[optimum, ]
     },
     .rashomonSamplesComplete = function() {
-      if (any(!is.na(private$.search.grid$.score))) 1L else 0L
+      if (all(is.na(private$.search.grid$.score))) 0L else 1L
     }
   )
 )
@@ -150,7 +150,7 @@ charRepr <- function(x) {
   if (length(x) == 0) {
     return("character(0)")
   }
-  output = paste0('"', x, '"', collapse = ", ", recycle0 = TRUE)
+  output <- paste0('"', x, '"', collapse = ", ", recycle0 = TRUE)
   if (length(x) == 1) {
     output
   } else {

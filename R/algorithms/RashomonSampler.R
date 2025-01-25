@@ -469,4 +469,3 @@ RashomonSampler <- R6Class("RashomonSampler",
     }
   )
 )
-

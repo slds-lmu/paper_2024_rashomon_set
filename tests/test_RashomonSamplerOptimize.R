@@ -54,7 +54,7 @@ test_that("RashomonSamplerOptimize initialization works", {
   expect_identical(sampler$id, "optimize")
   expect_identical(sampler$domain, domain)
   expect_true(sampler$minimize)
-  expect_equal(sampler$learner, learner)  # nolint
+  expect_equal(suppressWarnings(sampler$learner), learner)  # nolint
   expect_false(identical(sampler$learner, learner))
   expect_identical(sampler$search.grid.size, 30L)
 
@@ -73,6 +73,8 @@ test_that("RashomonSamplerOptimize initialization works", {
 })
 
 test_that("RashomonSamplerOptimize works with mean acquisition function", {
+  domain <- ps(x = p_dbl(-5, 5))
+
   # Test with learner that doesn't support SE
   learner.no.se <- lrn("regr.rpart")
   sampler <- initializeSampler(AqfMean(), TRUE, learner.no.se)
