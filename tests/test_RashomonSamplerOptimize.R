@@ -17,6 +17,8 @@ initializeSampler <- function(aqf, minimize, learner) {
     id = "optimize",
     domain = domain,
     minimize = minimize,
+    rashomon.epsilon = 0,
+    rashomon.is.relative = FALSE,
     learner = learner,
     aqf = aqf,
     search.grid.size = 20,
@@ -45,6 +47,8 @@ test_that("RashomonSamplerOptimize initialization works", {
     id = "optimize",
     domain = domain,
     minimize = TRUE,
+    rashomon.epsilon = 0,
+    rashomon.is.relative = FALSE,
     learner = learner,
     aqf = AqfMean(),
     search.grid.size = 30,
@@ -63,6 +67,8 @@ test_that("RashomonSamplerOptimize initialization works", {
     id = "optimize",
     domain = domain,
     minimize = FALSE,
+    rashomon.epsilon = 0,
+    rashomon.is.relative = FALSE,
     learner = learner,
     aqf = AqfMean(),
     search.grid.size = 30,
@@ -88,6 +94,8 @@ test_that("RashomonSamplerOptimize works with mean acquisition function", {
   # Should fail with other acquisition functions
   sampler.2 <- RashomonSamplerOptimize$new(
     id = "optimize", domain = domain, minimize = TRUE,
+    rashomon.epsilon = 0,
+    rashomon.is.relative = FALSE,
     learner = learner.no.se, aqf = AqfEi(),
     search.grid.size = 20, seed = 1
   )
@@ -117,7 +125,8 @@ test_that("RashomonSamplerOptimize works for all acquisition functions", {
   # Test with learner that supports SE
   learner.se <- lrn("regr.km", predict_type = "se")$encapsulate("evaluate",
     lrn("regr.featureless", predict_type = "se"))
-  aqfs <- list(AqfMean = AqfMean(), AqfSd = AqfSd(), AqfEi = AqfEi(), AqfLcb = AqfLcb(1))
+  aqfs <- list(AqfMean = AqfMean(), AqfSd = AqfSd(), AqfEi = AqfEi(), AqfLcb = AqfLcb(1),
+    AqfStraddle = AqfStraddle(0.5, TRUE))
 
   all.aqfs <- mget(ls(pattern = "^Aqf", envir = .GlobalEnv), envir = .GlobalEnv)
   all.aqfs <- names(all.aqfs)[vapply(all.aqfs, inherits, logical(1), "function")]
@@ -145,7 +154,8 @@ test_that("RashomonSamplerOptimize handles optimization correctly", {
     list(name = "AqfMean", aqf = list(AqfMean()), does.optimize = TRUE),
     list(name = "AqfSd", aqf = list(AqfSd()), does.optimize = FALSE),
     list(name = "AqfEi", aqf = list(AqfEi()), does.optimize = TRUE),
-    list(name = "AqfLcb", aqf = list(AqfLcb(1)), does.optimize = TRUE)
+    list(name = "AqfLcb", aqf = list(AqfLcb(1)), does.optimize = TRUE),
+    list(name = "AqfStraddle", aqf = list(AqfStraddle(0.5, TRUE)), does.optimize = FALSE)
   ))
 
   all.aqfs <- mget(ls(pattern = "^Aqf", envir = .GlobalEnv), envir = .GlobalEnv)
@@ -202,7 +212,10 @@ test_that("RashomonSamplerOptimize handles optimization correctly", {
       rl <- doOptimize(aqf, do.minimize)
       results <- rl$result
       sampler <- rl$sampler
-      expect_identical(sampler$rashomonSamplesComplete(), 1L)
+      if (aqfs$does.optimize[i]) {
+        # since we have epsilon set to 0
+        expect_identical(sampler$rashomonSamplesComplete(), 1L)
+      }
       optimum <- sampler$getRashomonSamples()
       expect_equal(
         results[.score == if (do.minimize) min(.score) else max(.score)][optimum[, .(.id)], on = ".id"],
@@ -231,6 +244,8 @@ test_that("RashomonSamplerOptimize handles first point selection correctly", {
     id = "optimize",
     domain = domain,
     minimize = TRUE,
+    rashomon.epsilon = 0,
+    rashomon.is.relative = FALSE,
     learner = learner,
     aqf = AqfEi(),
     search.grid.size = 20,

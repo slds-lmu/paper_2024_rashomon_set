@@ -8,13 +8,16 @@
 #'
 #' @export
 RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
-  inherit = RashomonSampler,
+  inherit = RashomonSamplerLearnerBased,
   public = list(
     #' @description
     #' Initialize the Rashomon sampler.
     #' @param id (`character(1)`) Identifier for this sampler instance, used for logging and printing
     #' @param domain (`ParamSet`) Parameter space to search over
     #' @param minimize (`logical(1)`) Whether to minimize (`TRUE`) or maximize (`FALSE`) the objective
+    #' @param rashomon.epsilon (`numeric(1)`) Epsilon threshold for Rashomon set membership
+    #' @param rashomon.is.relative (`logical(1)`) Whether epsilon is relative to optimal score (`TRUE`) or absolute
+    #'   (`FALSE`)
     #' @param learner (`Learner`) Learner to optimize
     #' @param aqf (`function`) Acquisition function to optimize.
     #'   Takes vectors of same length `mean` and `sd` and returns a vector of scores.
@@ -24,34 +27,18 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     #'   It should assume that a lower mean is better, and should therefore tend to return lower values for lower means.
     #' @param search.grid.size (`integer(1)`) Number of samples to request in the initial batch
     #' @param seed (`integer(1)`) Random seed for reproducibility
-    initialize = function(id, domain, minimize, learner, aqf, search.grid.size, seed) {
-      private$.search.grid.size <- assertCount(search.grid.size, positive = TRUE, tol = 0, coerce = TRUE)
-      super$initialize(id, domain, minimize, rashomon.epsilon = 0, rashomon.is.relative = FALSE,
-        n.rashomon.samples = Inf, seed = seed)
-      private$.learner <- assert_r6(learner, "Learner")$clone(deep = TRUE)
-      if ("se" %in% private$.learner$predict_types) {
-        private$.learner$predict_type <- "se"
-      }
+    initialize = function(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner, aqf, search.grid.size,
+        seed) {
+      super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner, search.grid.size,
+        seed, n.rashomon.samples = Inf)
       private$.aqf <- assert_function(aqf)
     }
   ),
   active = list(
-    #' @field search.grid.size (`integer(1)`) Number of samples to request in the initial batch
-    search.grid.size = function() private$.search.grid.size,
-    #' @field learner (`Learner`) Learner to optimize
-    learner = function(rhs) {
-      if (!missing(rhs) && !identical(private$.learner, rhs)) {
-        stop("learner is read-only")
-      }
-      private$.learner
-    },
     #' @field aqf (`function`) Acquisition function to optimize.
     aqf = function() private$.aqf
   ),
   private = list(
-    .search.grid.size = NULL,
-    .search.grid = NULL,
-    .learner = NULL,
     .aqf = NULL,
     .askXSamples = function() {
       if (is.null(private$.search.grid)) {
@@ -63,75 +50,19 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     .tellXSamples = function(x) {
       private$.search.grid <- copy(x)
     },
-    .askYValues = function() {
-      # Split into known and unknown points
-      grid.known <- private$.search.grid[!is.na(.score)]
-      grid.unknown <- private$.search.grid[is.na(.score)]
-
-      # If no known points yet, pick first point randomly
-      if (!nrow(grid.known)) {
-        warning("No known points yet, picking first point randomly")
-        row <- sample.int(nrow(grid.unknown), 1L)
-        return(grid.unknown[row])
-      }
-
-      if (!nrow(grid.unknown)) {
-        stop("No unknown points left to evaluate")
-      }
-
-      # Create regression tasks
-      task.known <- as_task_regr(grid.known[, -".id", with = FALSE], target = ".score", id = "known")
-      task.unknown <- as_task_regr(grid.unknown[, -".id", with = FALSE], target = ".score", id = "unknown")
-
-      # Train learner and make predictions
-      learner <- private$.learner$clone(deep = TRUE)
-      learner$train(task.known)
-
-      pred.unknown <- learner$predict(task.unknown)
-
-      # Get mean and sd predictions
-      mean.pred <- assertNumeric(pred.unknown$response, len = nrow(grid.unknown), any.missing = FALSE, finite = TRUE,
-        .var.name = "mean.pred made by learner")
-      sd.pred <- assertNumeric(pred.unknown$se, len = nrow(grid.unknown), finite = TRUE,
-        .var.name = "sd.pred made by learner")
-
-      # If minimizing, keep as is. If maximizing, negate means
-      multiplier <- 1
-      if (!self$minimize) {
-        mean.pred <- -mean.pred
-        grid.known$.score <- -grid.known$.score
-        multiplier <- -1
-      }
-
+    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, grid.known, grid.unknown) {
       # Calculate acquisition function values
       acq.values <- private$.aqf(
         mean = mean.pred,
         sd = sd.pred,
-        known.y = grid.known$.score * multiplier
+        known.y = known.y
       )
 
-      assertNumeric(acq.values, len = nrow(grid.unknown), any.missing = FALSE, finite = TRUE,
+      assertNumeric(acq.values, len = length(mean.pred), any.missing = FALSE, finite = TRUE,
         .var.name = "acquisition function result")
 
       # Return the point with minimum acquisition value
-      row <- which.min(acq.values)
-      grid.unknown[row]
-    },
-    .tellYValues = function(y) {
-      row <- match(y$.id, private$.search.grid$.id)
-      set(private$.search.grid, i = row, j = ".score", value = y$.score)
-    },
-    .getRashomonSamples = function() {
-      score <- private$.search.grid$.score
-      if (self$minimize) {
-        optimum <- which.min(score)
-      } else {
-        optimum <- which.max(score)
-      }
-      private$.search.grid[optimum, ]
-    },
-    .rashomonSamplesComplete = function() {
-      if (all(is.na(private$.search.grid$.score))) 0L else 1L
+      which.min(acq.values)
     }
   )
 )
