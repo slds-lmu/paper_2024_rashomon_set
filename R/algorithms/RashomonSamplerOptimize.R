@@ -21,7 +21,7 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     #' @param learner (`Learner`) Learner to optimize
     #' @param aqf (`function`) Acquisition function to optimize.
     #'   Takes vectors of same length `mean` and `sd` and returns a vector of scores.
-    #'   Besides that, argument `known.y` is passed to the acquisition function.
+    #'   Besides that, argument `known.y` and `known.y.predicted` are passed to the acquisition function.
     #'   This vector contains information about the values of the objective function that were already evaluated.
     #'   The acquisition function should always minimize:
     #'   It should assume that a lower mean is better, and should therefore tend to return lower values for lower means.
@@ -50,12 +50,13 @@ RashomonSamplerOptimize <- R6Class("RashomonSamplerOptimize",
     .tellXSamples = function(x) {
       private$.search.grid <- copy(x)
     },
-    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, grid.known, grid.unknown) {
+    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, known.y.predicted, ...) {
       # Calculate acquisition function values
       acq.values <- private$.aqf(
         mean = mean.pred,
         sd = sd.pred,
-        known.y = known.y
+        known.y = known.y,
+        known.y.predicted = known.y.predicted
       )
 
       assertNumeric(acq.values, len = length(mean.pred), any.missing = FALSE, finite = TRUE,
@@ -118,7 +119,7 @@ print.Aqf <- function(x, ...) {
 #'
 #' @family Acquisition Functions
 #' @export
-AqfMean <- function() makeAqf(function(mean, sd, known.y) mean, "AqfMean()")
+AqfMean <- function() makeAqf(function(mean, sd, known.y, known.y.predicted) mean, "AqfMean()")
 
 #' @title Standard Deviation Acquisition Function
 #'
@@ -131,7 +132,7 @@ AqfMean <- function() makeAqf(function(mean, sd, known.y) mean, "AqfMean()")
 #'
 #' @family Acquisition Functions
 #' @export
-AqfSd <- function() makeAqf(function(mean, sd, known.y) -sd, "AqfSd()")
+AqfSd <- function() makeAqf(function(mean, sd, known.y, known.y.predicted) -sd, "AqfSd()")
 
 #' @title Lower Confidence Bound Acquisition Function
 #'
@@ -145,7 +146,7 @@ AqfSd <- function() makeAqf(function(mean, sd, known.y) -sd, "AqfSd()")
 #' @export
 AqfLcb <- function(lambda) {
   assertNumber(lambda, finite = TRUE)
-  makeAqf(function(mean, sd, known.y) mean - lambda * sd, sprintf("AqfLcb(%s)", lambda))
+  makeAqf(function(mean, sd, known.y, known.y.predicted) mean - lambda * sd, sprintf("AqfLcb(%s)", lambda))
 }
 
 #' @title Expected Improvement Acquisition Function
@@ -161,7 +162,7 @@ AqfLcb <- function(lambda) {
 #' @family Acquisition Functions
 #' @export
 AqfEi <- function() {
-  makeAqf(function(mean, sd, known.y) {
+  makeAqf(function(mean, sd, known.y, known.y.predicted) {
     # Get current best value (minimum since we're always minimizing)
     best.f <- min(known.y)
 

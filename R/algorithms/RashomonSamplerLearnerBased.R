@@ -96,15 +96,25 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
       sd.pred <- assertNumeric(pred.unknown$se, len = nrow(grid.unknown), finite = TRUE,
         .var.name = "sd.pred made by learner")
 
+      pred.known <- learner$predict(task.known)
+      known.y.predicted <- assertNumeric(pred.known$response,
+        len = nrow(grid.known), any.missing = FALSE, finite = TRUE,
+        .var.name = "known.y.predicted made by learner")
+      known.y.predicted.sd <- assertNumeric(pred.known$se,
+        len = nrow(grid.known), finite = TRUE,
+        .var.name = "known.y.predicted.sd made by learner")
+
       # If minimizing, keep as is. If maximizing, negate means
       multiplier <- 1
       if (!self$minimize) {
         mean.pred <- -mean.pred
         grid.known$.score <- -grid.known$.score
+        known.y.predicted <- -known.y.predicted
         multiplier <- -1
       }
+
       row <- private$.askYValuesWithLearner(mean.pred, sd.pred, grid.known$.score * multiplier,
-        grid.known, grid.unknown)
+        known.y.predicted, known.y.predicted.sd, grid.known, grid.unknown, learner)
       assertInt(row, lower = 1, upper = nrow(grid.unknown), .var.name = "row returned by .askYValuesWithLearner")
       grid.unknown[row]
     },
@@ -116,9 +126,6 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
       non.nas <- which(!is.na(private$.search.grid$.score))
       indices <- private$.getRashomonIndices(private$.search.grid[non.nas, .score])
       private$.search.grid[non.nas[indices], ]
-    },
-    .rashomonSamplesComplete = function() {
-      length(private$.getRashomonIndices(private$.search.grid[!is.na(.score), .score]))
     },
     .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, grid.unknown) {
       stop("Not implemented")

@@ -175,7 +175,7 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' Get the number of Rashomon set samples found.
     #' @return (`integer(1)`) Number of Rashomon set samples found
     rashomonSamplesComplete = function() {
-      (assertCount(private$.rashomonSamplesComplete(), tol = 0))  # parens to make result visible
+      nrow(self$getRashomonSamples())
     },
 
     #' @description
@@ -186,7 +186,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       result <- private$.getRashomonSamples()
       assertDataTable(result)
       assertNames(colnames(result), must.include = c(self$domain$ids(), ".score"))
-      result
+      result[, .(.score = mean(.score, na.rm = TRUE)), by = self$domain$ids()]
     },
 
     #' @description
@@ -429,11 +429,6 @@ RashomonSampler <- R6Class("RashomonSampler",
     # given a table with codomain$ids(), .id, and .score.
     # Called when the user has provided exactly the number of samples requested by .askYValues().
     .tellYValues = function(y) {
-      stop("Not implemented")
-    },
-    # return the number of rashomon samples that have been found
-    # May be called in any state.
-    .rashomonSamplesComplete = function() {
       stop("Not implemented")
     },
     # Get a table with codomain$ids(), .id, and .score

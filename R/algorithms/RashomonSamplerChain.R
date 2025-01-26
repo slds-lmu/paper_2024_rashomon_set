@@ -233,9 +233,6 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
     .getRashomonSamples = function() {
       private$.samplers[[private$.sampler.index]]$getRashomonSamples()
     },
-    .rashomonSamplesComplete = function() {
-      private$.samplers[[private$.sampler.index]]$rashomonSamplesComplete()
-    },
     .switchToNextSampler = function() {
       while (private$.known.y.count >= private$.ask.y.each[[private$.sampler.index]]) {
         private$.sampler.index <- private$.sampler.index + 1L
