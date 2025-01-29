@@ -65,9 +65,6 @@ RashomonSamplerRandom <- R6Class("RashomonSamplerRandom",
     .getRashomonSamples = function() {
       indices <- private$.getRashomonIndices(private$.archive$.score)
       private$.archive[indices, ]
-    },
-    .rashomonSamplesComplete = function() {
-      length(private$.getRashomonIndices(private$.archive$.score))
     }
   )
 )

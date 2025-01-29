@@ -132,7 +132,8 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
       private$.still.caching <- length(samplers) > private$.sampler.index
       private$.cache.index <- 0L
       private$.known.y.count <- 0L
-      private$.table.cache <- getNullTable(domain, include.id = TRUE, include.score = TRUE)
+      # .table.cache is NULL if there is only one sampler
+      private$.table.cache <- if (private$.still.caching) getNullTable(domain, include.id = TRUE, include.score = TRUE)
 
       # Inherit from last sampler
       rashomon.epsilon <- samplers[[length(samplers)]]$rashomon.epsilon
@@ -151,8 +152,9 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
     },
     #' @field sampler.index (`integer(1)`) Index of the currently active sampler
     sampler.index = function() private$.sampler.index,
-    #' @field ask.y.each (`numeric`) Cumulative number of Y-values at which transitions occur
-    ask.y.each = function() private$.ask.y.each
+    #' @field ask.y.each (`numeric`) Number of Y-values at which transitions occur
+    # internally, .ask.y.each is cumulative
+    ask.y.each = function() c(private$.ask.y.each[[1]], diff(private$.ask.y.each))
   ),
   private = list(
     # samplers being wrapped
@@ -196,17 +198,16 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
     .askYValues = function() {
       asking <- private$.samplers[[private$.sampler.index]]$askYValues()
       if (!is.null(private$.table.cache)) {
-        # TODO: Maybe we shouldn't play police here
         # match() here gives NA if asking$.id is not in the first .cache.index entries of .table.cache$.ids.
         # This also means we only look at .table.cache lines that were already given to the currently active sampler.
         rows <- match(asking$.id, private$.table.cache$.id[seq_len(private$.cache.index)])
         if (anyNA(rows)) {
-          stopf(sprintf("Sampler %s asked for .id values that were not seen yet.",
+          stop(sprintf("Sampler %s asked for .id values that were not seen yet.",
             private$.samplers[[private$.sampler.index]]$id
           ))
         }
         if (!all(is.na(private$.table.cache[rows, .score]))) {
-          stopf(sprintf("Sampler %s asked for .id values that should have been answered already. This is a bug.",
+          stop(sprintf("Sampler %s asked for .id values that should have been answered already. This is a bug.",
             private$.samplers[[private$.sampler.index]]$id
           ))
         }
@@ -231,9 +232,6 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
     },
     .getRashomonSamples = function() {
       private$.samplers[[private$.sampler.index]]$getRashomonSamples()
-    },
-    .rashomonSamplesComplete = function() {
-      private$.samplers[[private$.sampler.index]]$rashomonSamplesComplete()
     },
     .switchToNextSampler = function() {
       while (private$.known.y.count >= private$.ask.y.each[[private$.sampler.index]]) {
