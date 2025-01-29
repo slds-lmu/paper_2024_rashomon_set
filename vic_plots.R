@@ -11,12 +11,31 @@ library(iml)
 library(corrplot)
 
 ## General settings ############################################################
-load("data/design.RData") 
-# load("data/design_bs.RData")
-load("data/results_vic.RData") 
-# load("data/results_vic_bs.RData")
+load("data/design.RData")
+
+## merge vics
+# final_vic = list()
+# final_vic_normalized = list()
+# for(i in unique(pre_design$rn)){
+#   load(paste0("data/results_vic_", i, ".RData"))
+#   # if(length(names(vic)) == 1) {
+#   #   final_vic = vic
+#   #   final_vic_normalized = vic_normalized
+#   # } else {
+#     final_vic[[i]] = vic[[i]]
+#     final_vic_normalized[[i]] = vic_normalized[[i]]
+#   # }
+# }
+# vic = final_vic
+# vic_normalized = final_vic_normalized
+# save(vic, vic_normalized, file = paste0("data/results_vic.RData"))
+
+##  
+ 
+load("data/results_vic.RData")
+
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
-learner.keys = c("tree", "glmnet", "xgb")
+learner.keys = c("tree", "glmnet", "xgb", "nnet", "svm")
 
 # setDefaultRegistry(regr)
 
@@ -28,7 +47,7 @@ for(task.key in task.keys){
   performance[[task.key]] = list()
   for(learner.key in learner.keys){
     dt = run_models$torun.samples[[learner.key]]
-    performance[[task.key]][[learner.key]] = dt[taskname == task.key]$score[1:pre_design[rn == task.key & learnername == learner.key]$count]
+    performance[[task.key]][[learner.key]] = dt[taskname == task.key]$score
   }
 }
 
@@ -43,7 +62,7 @@ for(task.key in task.keys){
   perf_index_RS[[task.key]] = lapply(performance[[task.key]], function(x) which(x < best_performance[task.key]*1.1))
   vic_learner = sub(".*_(.*?)_.*", "\\1", vic_names[-1])
   vic_learner_table[[task.key]] = list()
-  vic_learner_table[[task.key]]$all = table(vic_learner)[unique(vic_learner)]
+  vic_learner_table[[task.key]]$all = table(vic_learner)[unique(vic_learner)] # also in pre_design so this is a bit useless
   cum_sum_learner = cumsum(vic_learner_table[[task.key]]$all)
   index = 1 # feature column in vic 
   for(learner.key in learner.keys){
@@ -142,6 +161,8 @@ gpairs_lower <- function(g){
   g
 }
 
+alpha_value = 0.3
+
 vic_long = list()
 vic_wide = list()
 plots = list()
@@ -150,16 +171,17 @@ for(task.key in task.keys){
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_long[[task.key]]$PFI)
   model_no = as.numeric(sub(".*_.*_m(.?)", "\\1", colnames(vic[[task.key]])[-1]))
-  tmp = table(vic_long[[task.key]]$learner)/length(vic[[task.key]]$feature)
-  unique_order <- unique(vic_long[[task.key]]$learner)
-  threshold = cumsum(tmp[unique_order])
-  for(i in seq(threshold)[-1]){
-    model_no[(threshold[i-1]+1):threshold[i]] = model_no[(threshold[i-1]+1):threshold[i]] + threshold[i-1]
-  }
+  # uncomment the following lines if models are numbered per model class
+  # tmp = table(vic_long[[task.key]]$learner)/length(vic[[task.key]]$feature)
+  # unique_order <- unique(vic_long[[task.key]]$learner)
+  # threshold = cumsum(tmp[unique_order])
+  # for(i in seq(threshold)[-1]){
+  #   model_no[(threshold[i-1]+1):threshold[i]] = model_no[(threshold[i-1]+1):threshold[i]] + threshold[i-1]
+  # }
   vic_long[[task.key]]$performance = rep(unlist(performance[[task.key]])[model_no], #[perf_index_RS[[task.key]]-1],
                                          times = length(vic[[task.key]]$feature))
   vic_long[[task.key]] = vic_long[[task.key]] %>%
-    mutate(alpha_value = ifelse(performance < (best_performance[task.key] * 1.1), 0.4, 0.05))
+    mutate(alpha_value = ifelse(performance < (best_performance[task.key] * 1.1), 0.4, 0.01))
   vic_wide[[task.key]] = vic_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
   
@@ -214,12 +236,47 @@ for(task.key in task.keys){
   vic_RS_wide[[task.key]] = vic_RS_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
   
+  if(task.key != "st"){
+    plot1 = ggplot() +
+      geom_quasirandom(data = vic_RS_long[[task.key]], aes(x = Value, y = feature, 
+                                                        color = performance, alpha = alpha_value), 
+                       cex = 1, shape = 16, stroke = 0) +  
+      scale_color_gradient(low = "blue", high = "red") + 
+      labs(x = "Importance", y = "Feature", color = "Performance", 
+           title = paste0("PFI values (", task.key, ") colored by performance")) +
+      theme_minimal()
+  } else {
+    plot1 = ggplot() +
+      geom_quasirandom(data = vic_RS_long[[task.key]], aes(x = Value, y = feature, 
+                                                        color = performance, alpha = alpha_value), 
+                       cex = 1, shape = 16, stroke = 0) +  
+      geom_point(data = true_pfi, aes(x = importance, y = feature, 
+                                      alpha = 1), cex = 3) + 
+      scale_color_gradient(low = "blue", high = "red") +  
+      scale_alpha_identity() +  
+      labs(x = "Importance", y = "Feature", color = "Performance", 
+           title = paste0("PFI values (", task.key, ") colored by performance")) +
+      theme_minimal()
+  }
+  
+  
+  # Plot 2: Scatter-plot using jitter colored acc. to model class
+  plot2 = ggplot(vic_RS_long[[task.key]], aes(x = Value, y = feature,
+                                           color = learner, alpha = alpha_value)) +
+    geom_quasirandom(cex = 1, shape = 16, stroke = 0) +  
+    # scale_color_gradient(low = "blue", high = "red") +  
+    labs(x = "Importance", y = "Feature", color = "Learner",
+         title = paste0("PFI values (", task.key, ") colored by learner")) +
+    theme_minimal()
   
   # Plot 3: Box plot
-  plot3 = ggplot(vic_RS_long[[task.key]], aes(x = feature, y = Value)) +
-    geom_boxplot() + coord_flip() +
-    labs(x = "Importance", y = "Feature", title = paste("PFI values:", task.key)) +
-    theme_minimal()
+  plot3 = ggplot(vic_RS_long[[task.key]]) +
+    geom_boxplot(aes(x = feature, y = Value), fill = "gray") +
+    geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
+    coord_flip() +
+    labs(y = "Importance", x = "Feature", fill = "Learner",
+         title = paste("PFI values (max importance = 1):", task.key)) +
+    theme_minimal() + guides(alpha = FALSE)
   
   # Plot 4: Pairwise Plots
   lowerfun <- function(data,mapping){
@@ -234,8 +291,11 @@ for(task.key in task.keys){
                   lower = list(continuous = wrap(lowerfun)),
                   upper  = list(continuous = "blank"),
                   diag  = list(continuous = "blankDiag"),
+                  legend = c(2,1),
                   title = paste("Pairwise Comparison:", task.key),
-                  ggplot2::aes(colour = vic_RS_wide[[task.key]]$learner, alpha = 0.3))
+                  aes(colour = vic_RS_wide[[task.key]]$learner, alpha = alpha_value)) +
+    theme(legend.position = "bottom") +
+    labs(colour = "Learner:") + guides(alpha = FALSE)
   
   ## Plot 5: Pairwise Plots of the four most important features
   tmp_df = data.frame(feature = vic_RS[[task.key]]$feature,
@@ -253,14 +313,18 @@ for(task.key in task.keys){
                   lower = list(continuous = wrap(lowerfun)),
                   upper  = list(continuous = "blank"),
                   diag  = list(continuous = "blankDiag"),
+                  legend = c(2,1),
                   title = paste("Pairwise Comparison of top 4 features:", task.key),
-                  ggplot2::aes(colour = vic_RS_wide[[task.key]]$learner, alpha = 0.3))
+                  ggplot2::aes(colour = vic_RS_wide[[task.key]]$learner, alpha = alpha_value)) +
+    theme(legend.position = "bottom") +
+    labs(colour = "Learner:") + guides(alpha = FALSE)
   rm(tmp_df, top4_features)
   
-
-  plots[[task.key]][["box_plot"]] = plot3
-  plots[[task.key]][["pairwise_comparison"]] = gpairs_lower(plot4)
-  plots[[task.key]][["pairwise_comparison_top4_features"]] = gpairs_lower(plot5)
+  plots[[task.key]][["RS_performance_scatter_plot"]] = plot1
+  plots[[task.key]][["RS_scatter_plot"]] = plot2
+  plots[[task.key]][["RS_box_plot"]] = plot3
+  plots[[task.key]][["RS_pairwise_comparison"]] = gpairs_lower(plot4)
+  plots[[task.key]][["RS_pairwise_comparison_top4_features"]] = gpairs_lower(plot5)
 }
 
 # vic_normalized
@@ -272,16 +336,17 @@ for(task.key in task.keys){
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_scaled_long[[task.key]]$PFI)
   model_no = as.numeric(sub(".*_.*_m(.?)", "\\1", colnames(vic_normalized[[task.key]])[-1]))
-  tmp = table(vic_scaled_long[[task.key]]$learner)/length(vic_normalized[[task.key]]$feature)
-  unique_order <- unique(vic_scaled_long[[task.key]]$learner)
-  threshold = cumsum(tmp[unique_order])
-  for(i in seq(threshold)[-1]){
-    model_no[(threshold[i-1]+1):threshold[i]] = model_no[(threshold[i-1]+1):threshold[i]] + threshold[i-1]
-  }
+  # uncomment the following lines if models are numbered per model class
+  # tmp = table(vic_scaled_long[[task.key]]$learner)/length(vic_normalized[[task.key]]$feature)
+  # unique_order <- unique(vic_scaled_long[[task.key]]$learner)
+  # threshold = cumsum(tmp[unique_order])
+  # for(i in seq(threshold)[-1]){
+  #   model_no[(threshold[i-1]+1):threshold[i]] = model_no[(threshold[i-1]+1):threshold[i]] + threshold[i-1]
+  # }
   vic_scaled_long[[task.key]]$performance = rep(unlist(performance[[task.key]])[model_no],
                                                 times = length(vic_normalized[[task.key]]$feature))
   vic_scaled_long[[task.key]] = vic_scaled_long[[task.key]] %>%
-    mutate(alpha_value = ifelse(performance < (best_performance[task.key] * 1.1), 0.4, 0.05))
+    mutate(alpha_value = ifelse(performance < (best_performance[task.key] * 1.1), 0.4, 0.01))
   
   
   # Plot 1: Scatter-plot using jitter colored acc. to performance
@@ -337,39 +402,79 @@ for(task.key in task.keys){
   vic_RS_scaled_wide[[task.key]] = vic_RS_scaled_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
   
+  # Plot 1: Scatter-plot using jitter colored acc. to performance
+  if(task.key != "st"){
+    plot1 = ggplot(vic_RS_scaled_long[[task.key]], aes(x = Value, y = feature,
+                                                    color = performance, 
+                                                    alpha = alpha_value)) +
+      geom_quasirandom(cex = 1, shape = 16, stroke = 0) +  
+      scale_color_gradient(low = "blue", high = "red") +  
+      scale_alpha_identity() +  
+      labs(x = "Importance", y = "Feature", color = "Performance", 
+           title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
+      theme_minimal()
+  } else {
+    plot1 = ggplot() +
+      geom_quasirandom(data = vic_RS_scaled_long[[task.key]], 
+                       aes(x = Value, y = feature, color = performance, 
+                           alpha = alpha_value), 
+                       cex = 1, shape = 16, stroke = 0) +  
+      geom_point(data = true_pfi_scaled, aes(x = importance, y = feature, 
+                                             alpha = 1), cex = 3) + 
+      scale_color_gradient(low = "blue", high = "red") +  
+      scale_alpha_identity() +  
+      labs(x = "Importance", y = "Feature", color = "Performance", 
+           title = paste0("PFI values (", task.key, ", max importance = 1) olored by performance")) +
+      theme_minimal()
+  }
+  
+  
+  # Plot 2: Scatter-plot using jitter colored acc. to model class
+  plot2 = ggplot(vic_RS_scaled_long[[task.key]], aes(x = Value, y = feature,
+                                                  color = learner, 
+                                                  alpha = alpha_value)) +
+    geom_quasirandom(cex = 1, shape = 16, stroke = 0) +  
+    scale_alpha_identity() +  
+    labs(x = "Importance", y = "Feature", color = "Learner",
+         title = paste0("PFI values (", task.key, ", max importance = 1) colored by learner")) +
+    theme_minimal()
   
   # Plot 3: Box plot
   plot3 = ggplot(vic_RS_scaled_long[[task.key]]) +
     geom_boxplot(aes(x = feature, y = Value), fill = "gray") +
-    geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = 0.5)) +
+    geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
     coord_flip() +
-    labs(x = "Importance", y = "Feature", title = paste("PFI values (max importance = 1):", task.key)) +
-    theme_minimal()
+    labs(y = "Importance", x = "Feature", fill = "Learner",
+         title = paste("PFI values (max importance = 1):", task.key)) +
+    theme_minimal() + guides(alpha = FALSE)
   
-  plots_scaled[[task.key]][["box_plot"]] = plot3
+  plots_scaled[[task.key]][["RS_performance_scatter_plot"]] = plot1
+  plots_scaled[[task.key]][["RS_scatter_plot"]] = plot2
+  plots_scaled[[task.key]][["RS_box_plot"]] = plot3
 }
 
-if("cs" %in% task.keys){
-  ## Plot 5: Pairwise Plots reproducing results of Dong & Rudin (2020) for cs
-  # extract four most important features in D&R: age, race, prior, gender
-  lowerfun <- function(data,mapping){
-    ggplot(data = data, mapping = mapping)+
-      geom_point()+
-      scale_x_continuous(limits = c(min(vic_RS_wide$cs[, -c(1,2,3,dim(vic_RS_wide$cs)[2])]),
-                                    max(vic_RS_wide$cs[, -c(1,2,3,dim(vic_RS_wide$cs)[2])])))+
-      scale_y_continuous(limits = c(min(vic_RS_wide$cs[, -c(1,2,3,4)]),
-                                    max(vic_RS_wide$cs[, -c(1,2,3,4)])))
-  }
-  tmp = vic_RS_wide$cs[vic_RS_wide$cs$learner == "tree", c("age", "race", "priors_count", "sex")]
-  plot6 = ggpairs(tmp,
-                  lower = list(continuous = wrap(lowerfun)),
-                  upper  = list(continuous = "blank"),
-                  diag  = list(continuous = "blankDiag"),
-                  title = "Pairwise Comparison: cs (Top 4 features of Dong & Rudin)",
-                  ggplot2::aes(alpha = 0.3))
-  plots$cs[["pairwise_comparison_top4_features_dong"]] = gpairs_lower(plot6)
-  rm(tmp)
-}
+# if("cs" %in% task.keys){
+#   ## Plot 5: Pairwise Plots reproducing results of Dong & Rudin (2020) for cs
+#   # extract four most important features in D&R: age, race, prior, gender
+#   lowerfun <- function(data,mapping){
+#     ggplot(data = data, mapping = mapping)+
+#       geom_point()+
+#       scale_x_continuous(limits = c(min(vic_RS_wide$cs[, -c(1,2,3,dim(vic_RS_wide$cs)[2])]),
+#                                     max(vic_RS_wide$cs[, -c(1,2,3,dim(vic_RS_wide$cs)[2])])))+
+#       scale_y_continuous(limits = c(min(vic_RS_wide$cs[, -c(1,2,3,4)]),
+#                                     max(vic_RS_wide$cs[, -c(1,2,3,4)])))
+#   }
+#   tmp = vic_RS_wide$cs[vic_RS_wide$cs$learner == "tree", c("age", "race", "priors_count", "sex")]
+#   plot6 = ggpairs(tmp,
+#                   lower = list(continuous = wrap(lowerfun)),
+#                   upper  = list(continuous = "blank"),
+#                   diag  = list(continuous = "blankDiag"),
+#                   legend = c(2,1),
+#                   title = "Pairwise Comparison: cs (Top 4 features of Dong & Rudin)",
+#                   ggplot2::aes(alpha = alpha_value))
+#   plots$cs[["pairwise_comparison_top4_features_dong"]] = gpairs_lower(plot6)
+#   rm(tmp)
+# }
 
 
 ## Save  #######################################################################
@@ -385,37 +490,58 @@ if("cs" %in% task.keys){
 # save plots
 for(task.key in task.keys){
   # scatter performance
-  name = paste0("figures/pfi_values_", task.key, "_scatter_performance.pdf")
-  ggsave(name, plots[[task.key]][[1]], width = 10, height = 5)
-  name = paste0("figures/pfi_scaled_values_", task.key, "_scatter_performance.pdf")
-  ggsave(name, plots_scaled[[task.key]][[1]], width = 10, height = 5)
-  # scatter model
-  name = paste0("figures/pfi_values_", task.key, "_scatter.pdf")
-  ggsave(name, plots[[task.key]][[2]], width = 10, height = 5)
-  name = paste0("figures/pfi_scaled_values_", task.key, "_scatter.pdf")
-  ggsave(name, plots_scaled[[task.key]][[2]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_scatter_performance.pdf")
+  ggsave(name, plots[[task.key]][["performance_scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_scatter_performance_scaled.pdf")
+  ggsave(name, plots_scaled[[task.key]][["performance_scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_performance.pdf")
+  ggsave(name, plots[[task.key]][["RS_performance_scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_performance_scaled.pdf")
+  ggsave(name, plots_scaled[[task.key]][["RS_performance_scatter_plot"]], width = 10, height = 5)
+  # scatter learner
+  name = paste0("figures/", task.key, "_pfi_scatter_learner.pdf")
+  ggsave(name, plots[[task.key]][["scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_scatter_learner_scaled.pdf")
+  ggsave(name, plots_scaled[[task.key]][["scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_learner.pdf")
+  ggsave(name, plots[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_learner_scaled.pdf")
+  ggsave(name, plots_scaled[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
   # boxplot
-  name = paste0("figures/pfi_values_", task.key, "_boxPlot.pdf")
-  ggsave(name, plots[[task.key]][[3]], width = 10, height = 5)
-  name = paste0("figures/pfi_scaled_values_", task.key, "_boxPlot.pdf")
-  ggsave(name, plots_scaled[[task.key]][[3]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_boxPlot.pdf")
+  ggsave(name, plots[[task.key]][["RS_box_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_boxPlot_scaled.pdf")
+  ggsave(name, plots_scaled[[task.key]][["RS_box_plot"]], width = 10, height = 5)
   # pairwise
-  name = paste0("figures/pfi_values_", task.key, "_pairwise.pdf")
-  ggsave(name, plots[[task.key]][[4]], width = 12.5, height = 6.25)
+  name = paste0("figures/", task.key, "_pfi_RS_pairwise.pdf")
+  ggsave(name, plots[[task.key]][["RS_pairwise_comparison"]], width = 12.5, height = 6.25)
   # pairwise Top 4
-  name = paste0("figures/pfi_values_", task.key, "_pairwise_top4.pdf")
-  ggsave(name, plots[[task.key]][["pairwise_comparison_top4_features"]], 
+  name = paste0("figures/", task.key, "_pfi_RS_pairwise_top4.pdf")
+  ggsave(name, plots[[task.key]][["RS_pairwise_comparison_top4_features"]], 
          width = 12.5, height = 6.25)
 }
-if("cs" %in% task.keys){
-  # pairwise compare compas with Dong & Rudin
-  name = paste0("figures/pfi_values_cs_pairwise_top4_dong.pdf")
-  ggsave(name, plots$cs[["pairwise_comparison_top4_features_dong"]], width = 10, height = 10)
-}
+# if("cs" %in% task.keys){
+#   # pairwise compare compas with Dong & Rudin
+#   name = paste0("figures/pfi_values_cs_pairwise_top4_dong.pdf")
+#   ggsave(name, plots$cs[["pairwise_comparison_top4_features_dong"]], width = 10, height = 10)
+# }
 
 
+#### Correlation analysis st data ####
 
-#### Rank analysis ####
+data = generateCanonicalDataSplits(list.tasks$st, ratio = 2 / 3, seed = 1)$validation$data()
+
+# Spearman's Rho 
+data_spearman_corr <- cor(data, method = "spearman")
+
+# plot
+name = paste0("figures/st_data_cor_spearman.pdf")
+pdf(file = name, width = 7, height = 7)
+corrplot(data_spearman_corr, method="circle", type="lower", tl.col = "black")
+dev.off()
+
+
+#### Correlation analysis FI values ####
 
 vic_t = lapply(vic_RS, function(x){
   tmp = t(x[,-1])
@@ -431,12 +557,12 @@ vic_kendall_corr <- lapply(vic_t, function(x) cor(x, method = "kendall"))
 
 # plot
 for(task.key in task.keys){
-  name = paste0("figures/pfi_", task.key, "_cor_spearman.pdf")
+  name = paste0("figures/", task.key, "_pfi_cor_spearman.pdf")
   pdf(file = name, width = 7, height = 7)
   corrplot(vic_spearman_corr[[task.key]], method="circle", type="lower", tl.col = "black")
   dev.off()
   
-  name = paste0("figures/pfi_", task.key, "_cor_kendall.pdf")
+  name = paste0("figures/", task.key, "_pfi_cor_kendall.pdf")
   pdf(file = name, width = 7, height = 7)
   corrplot(vic_kendall_corr[[task.key]], method="circle", type="lower", tl.col = "black")
   dev.off()
@@ -469,7 +595,7 @@ for(task.key in task.keys){
                                          times = length(f_ranks[[task.key]]$feature))
   
   plot1 = ggplot(f_ranks_long[[task.key]], aes(x = Value, y = feature, 
-                                           color = performance, alpha = 0.3)) +
+                                           color = performance, alpha = alpha_value)) +
     geom_quasirandom(cex = 1, shape = 16, stroke = 0) +  
     scale_color_gradient(low = "blue", high = "red") +  
     labs(x = "Rank", y = "Feature", color = "Performance", 
@@ -479,7 +605,7 @@ for(task.key in task.keys){
   
   # Plot 2: Scatter-plot using jitter colored acc. to model class
   plot2 = ggplot(f_ranks_long[[task.key]], aes(x = Value, y = feature,
-                                           color = learner, alpha = 0.3)) +
+                                           color = learner, alpha = alpha_value)) +
     geom_quasirandom(cex = 1, shape = 16, stroke = 0) +  
     labs(x = "Rank", y = "Feature", color = "Learner",
          title = paste0("PFI values (", task.key, ") colored by learner")) +

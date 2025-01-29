@@ -1,6 +1,13 @@
-run_models = readRDS("run_models.rds")
-run_models_2 = readRDS("run_models_2.rds")
-run_models_3 = readRDS("run_models_3.rds")
+# (glmnet,tree)x(bs,gc)
+run_models = readRDS("/media/external/rashomon/datafiles/model_info/run_models.rds")
+# (glmnet,tree)x(cs,st)
+run_models_2 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_2.rds")
+# (xgb) x (bs,gc, cs,st)
+run_models_3 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_3.rds")
+# (nnet) x all
+run_models_4 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_nnet.rds")
+# (svm) x all
+run_models_5 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_svm.rds")
 
 # (glmnet,tree)x(bs,gc)
 names(run_models$torun.samples)
@@ -28,8 +35,13 @@ glmnet_2 = run_models_2$torun.samples$glmnet
 merged_glmnet = merge(glmnet_1, glmnet_2, all = TRUE)
 run_models$torun.samples$glmnet = merged_glmnet
 
+# add nnet from run_models_4
+run_models$torun.samples$nnet = run_models_4$torun.samples$nnet
+# add svm from run_models_5
+run_models$torun.samples$svm = run_models_5$torun.samples$svm
+
 # check new dimensions
 run_models_dims = lapply(run_models$torun.samples, function(x) table(x$taskname))
-save(run_models_dims, file = "run_models_dims.RData")
+save(run_models_dims, file = "data/run_models_dims.RData")
 
-saveRDS(run_models, file = "run_models_merged.rds")
+saveRDS(run_models, file = "data/run_models_merged.rds")
