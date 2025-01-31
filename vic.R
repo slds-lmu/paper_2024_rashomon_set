@@ -6,23 +6,8 @@ library(tidyr)
 library(data.table)
 
 
-
-# Registry: 
-# "/media/external/ewaldf/cs"
-# "/media/external/ewaldf/bs"
-# "/media/external/ewaldf/bs_xgb"
-# "/media/external/ewaldf/bs_nnet_svm" 
-# "/media/external/ewaldf/cs_nnet_svm" 
-# "/media/external/ewaldf/gc_nnet_svm" 
-# "/media/external/ewaldf/st_nnet_svm" 
-# "/media/external/ewaldf/cs_FI_ratio"
-# regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/gc_nnet_svm",
-#                               source = "init.R",
-#                               packages = c("iml", "GGally", "patchwork")
-# )
-
 # writeable = TRUE only once !!!!
-regr = batchtools::loadRegistry("/media/external/ewaldf/bs_nnet_svm", writeable = TRUE)
+regr = batchtools::loadRegistry("XXX", writeable = TRUE)
 
 # Define Cluster-Configurations
 regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 12)
@@ -141,7 +126,7 @@ waitForJobs()
 
 #### Extract results ###########################################################
 # writeable = TRUE only once !!!!
-regr = batchtools::loadRegistry("/media/external/ewaldf/bs_nnet_svm", writeable = TRUE)
+regr = batchtools::loadRegistry("/media/external/XXX/bs_nnet_svm", writeable = TRUE)
 # setDefaultRegistry(regr)
 
 ## save results per data set and learner
