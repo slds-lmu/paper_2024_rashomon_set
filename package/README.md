@@ -1,4 +1,4 @@
-# MARTIN: Model Agnostic Rashomon Thingy INference
+# CASHomon Sets: Tractable Rashomon Sets Across Multiple Model Classes and their Hyperparameters
 
 ## Project Status
 
