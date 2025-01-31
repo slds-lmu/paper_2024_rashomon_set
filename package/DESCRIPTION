@@ -1,11 +1,6 @@
-Package: martin
-Title: Model Agnostic Rashomon Thingy INference
+Package: 
+Title: CASHomon Sets: Tractable Rashomon Sets Across Multiple Model Classes and their Hyperparameters
 Description: Something with Rashomon sets.
-Authors@R: c(
-  person("Martin", "Binder", email = "things.developer@mb706.com", role = c("aut", "cre"))
-  )
-URL: https://github.com/slds-lmu/paper_2024_rashomon_set
-BugReports: https://github.com/slds-lmu/paper_2024_rashomon_set/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
