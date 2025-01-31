@@ -22,8 +22,8 @@ RashomonSamplerStraddle <- R6Class("RashomonSamplerStraddle",
     #'   RashomonSampler implementations may optimize their behaviour to hit this target specifically.
     initialize = function(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner, search.grid.size, seed,
         n.rashomon.samples) {
-      super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner, aqf = AqfStraddle(),
-        search.grid.size, seed, n.rashomon.samples)
+      super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
+        aqf = AqfStraddle(rashomon.epsilon, rashomon.is.relative), search.grid.size, seed)
     }
   )
 )

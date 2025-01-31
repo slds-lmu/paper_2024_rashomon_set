@@ -70,14 +70,14 @@ test_that("RashomonSamplerRandom handles relative epsilon correctly", {
   expect_identical(sampler$rashomonSamplesComplete(), 0L)
   sampler$tellYValues(samples)
 
-  expect_equal(sampler$getRashomonSamples(), samples[.score <= 11], ignore.col.order = TRUE, ignore.row.order = TRUE)
+  expect_equal(sampler$getRashomonSamples(), samples[.score <= 11][, -".id", with = FALSE], ignore.col.order = TRUE, ignore.row.order = TRUE)
   expect_identical(sampler$rashomonSamplesComplete(), nrow(samples[.score <= 11]))
   expect_gt(sampler$rashomonSamplesComplete(), 1)  # make sure we don't accidentally have a case where this is 0 or 1
 
   samples.2 <- data.table(
     .id = 101:150,
     x1 = seq(0, 1, length.out = 50),
-    x2 = seq(0, 1, length.out = 50),
+    x2 = seq(1, 0, length.out = 50),
     .score = seq(9.8, 20, length.out = 50)
   )
 
@@ -88,7 +88,7 @@ test_that("RashomonSamplerRandom handles relative epsilon correctly", {
 
   expect_equal(
     sampler$getRashomonSamples(),
-    rbind(samples[.score <= 9.8 * 1.1], samples.2[.score <= 9.8 * 1.1]),
+    rbind(samples[.score <= 9.8 * 1.1], samples.2[.score <= 9.8 * 1.1])[, -".id", with = FALSE],
     ignore.col.order = TRUE, ignore.row.order = TRUE
   )
   expect_identical(
@@ -131,14 +131,14 @@ test_that("RashomonSamplerRandom handles absolute epsilon correctly", {
   sampler$tellYValues(samples)
 
   # With absolute epsilon of 2, samples with scores up to 12 should be in Rashomon set
-  expect_equal(sampler$getRashomonSamples(), samples[.score <= 12], ignore.col.order = TRUE, ignore.row.order = TRUE)
+  expect_equal(sampler$getRashomonSamples(), samples[.score <= 12][, -".id", with = FALSE], ignore.col.order = TRUE, ignore.row.order = TRUE)
   expect_identical(sampler$rashomonSamplesComplete(), nrow(samples[.score <= 12]))
   expect_gt(sampler$rashomonSamplesComplete(), 1)  # make sure we don't accidentally have a case where this is 0 or 1
 
   samples.2 <- data.table(
     .id = 101:150,
     x1 = seq(0, 1, length.out = 50),
-    x2 = seq(0, 1, length.out = 50),
+    x2 = seq(1, 0, length.out = 50),
     .score = seq(9.8, 20, length.out = 50)
   )
 
@@ -149,7 +149,7 @@ test_that("RashomonSamplerRandom handles absolute epsilon correctly", {
 
   expect_equal(
     sampler$getRashomonSamples(),
-    rbind(samples[.score <= 11.8], samples.2[.score <= 11.8]),
+    rbind(samples[.score <= 11.8], samples.2[.score <= 11.8])[, -".id", with = FALSE],
     ignore.col.order = TRUE, ignore.row.order = TRUE
   )
   expect_identical(
@@ -192,14 +192,15 @@ test_that("RashomonSamplerRandom handles maximization correctly (absolute epsilo
   sampler$tellYValues(samples)
 
   # With absolute epsilon of 2, samples with scores down to 18 should be in Rashomon set
-  expect_equal(sampler$getRashomonSamples(), samples[.score >= 18], ignore.col.order = TRUE, ignore.row.order = TRUE)
+  expect_equal(sampler$getRashomonSamples(), samples[.score >= 18][, -".id", with = FALSE],
+    ignore.col.order = TRUE, ignore.row.order = TRUE)
   expect_identical(sampler$rashomonSamplesComplete(), nrow(samples[.score >= 18]))
   expect_gt(sampler$rashomonSamplesComplete(), 1)  # make sure we don't accidentally have a case where this is 0 or 1
 
   samples.2 <- data.table(
     .id = 101:150,
     x1 = seq(0, 1, length.out = 50),
-    x2 = seq(0, 1, length.out = 50),
+    x2 = seq(1, 0, length.out = 50),
     .score = seq(14, 21, length.out = 50)  # overlaps with first batch but includes better values
   )
 
@@ -210,7 +211,7 @@ test_that("RashomonSamplerRandom handles maximization correctly (absolute epsilo
 
   expect_equal(
     sampler$getRashomonSamples(),
-    rbind(samples[.score >= 19], samples.2[.score >= 19]),  # both batches contribute
+    rbind(samples[.score >= 19], samples.2[.score >= 19])[, -".id", with = FALSE],  # both batches contribute
     ignore.col.order = TRUE, ignore.row.order = TRUE
   )
   expect_identical(
@@ -254,14 +255,15 @@ test_that("RashomonSamplerRandom handles maximization correctly (relative epsilo
   sampler$tellYValues(samples)
 
   # With relative epsilon of 0.1, samples with scores down to 18 should be in Rashomon set
-  expect_equal(sampler$getRashomonSamples(), samples[.score >= 18], ignore.col.order = TRUE, ignore.row.order = TRUE)
+  expect_equal(sampler$getRashomonSamples(), samples[.score >= 18][, -".id", with = FALSE],
+    ignore.col.order = TRUE, ignore.row.order = TRUE)
   expect_identical(sampler$rashomonSamplesComplete(), nrow(samples[.score >= 18]))
   expect_gt(sampler$rashomonSamplesComplete(), 1)  # make sure we don't accidentally have a case where this is 0 or 1
 
   samples.2 <- data.table(
     .id = 101:150,
     x1 = seq(0, 1, length.out = 50),
-    x2 = seq(0, 1, length.out = 50),
+    x2 = seq(1, 0, length.out = 50),
     .score = seq(14, 21, length.out = 50)  # overlaps with first batch but includes better values
   )
 
@@ -272,7 +274,7 @@ test_that("RashomonSamplerRandom handles maximization correctly (relative epsilo
 
   expect_equal(
     sampler$getRashomonSamples(),
-    rbind(samples[.score >= 18.9], samples.2[.score >= 18.9]),  # both batches contribute
+    rbind(samples[.score >= 18.9], samples.2[.score >= 18.9])[, -".id", with = FALSE],  # both batches contribute
     ignore.col.order = TRUE, ignore.row.order = TRUE
   )
   expect_identical(
@@ -309,7 +311,7 @@ test_that("RashomonSamplerRandom requests correct batch sizes", {
     x1 = runif(100),
     x2 = runif(100)
   )
-  sampler$tellXSamples(x.samples)
+  expect_identical(sampler$tellXSamples(x.samples), 0L)
 
   # Request Y values for all samples
   y.request <- sampler$askYValues()
@@ -317,7 +319,7 @@ test_that("RashomonSamplerRandom requests correct batch sizes", {
 
   # Provide scores that don't yield enough Rashomon samples
   y.values <- data.table(.id = 1:100, .score = runif(100, 0.5, 1.5))
-  sampler$tellYValues(y.values)
+  expect_identical(nrow(sampler$tellYValues(y.values)), 0L)
 
   # Next X request should be batchsize
   expect_identical(sampler$askXSamples(), 50L)
@@ -368,10 +370,9 @@ test_that("RashomonSamplerRandom handles partial scores in tellXSamples correctl
   # With absolute epsilon of 2, samples with scores up to 11.8 should be in Rashomon set
   expect_equal(
     sampler$getRashomonSamples(),
-    samples[.score <= 11.8],
+    samples[.score <= 11.8][, -".id", with = FALSE],
     ignore.col.order = TRUE, ignore.row.order = TRUE
   )
   expect_identical(sampler$rashomonSamplesComplete(), nrow(samples[.score <= 11.8]))
   expect_gt(sampler$rashomonSamplesComplete(), 1)
 })
-

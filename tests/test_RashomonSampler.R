@@ -237,7 +237,7 @@ test_that("RashomonSampler tracks Rashomon set correctly", {
   expect_identical(sampler$rashomonSamplesComplete(), 2L)
   rashomon.samples <- sampler$getRashomonSamples()
   expect_data_table(rashomon.samples, nrows = 2)
-  expect_named(rashomon.samples, c("x1", "x2", ".id", ".score"))
+  expect_named(rashomon.samples, c("x1", "x2", ".score"))
   expect_true(all(rashomon.samples$.score <= 0.5))
 })
 
@@ -1039,4 +1039,3 @@ test_that("RashomonSampler tellYValues preserves askYValues order", {
   expect_identical(sampler$last.y.told$.id, c(3L, 1L, 2L))
   expect_identical(sampler$last.y.told$.score, c(0.3, 0.1, 0.2))
 })
-

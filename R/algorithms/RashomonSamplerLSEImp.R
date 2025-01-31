@@ -16,7 +16,7 @@ RashomonSamplerLSEImplicit <- R6Class("RashomonSamplerLSEImplicit",
     #' @param rashomon.epsilon (`numeric(1)`) Epsilon threshold for Rashomon set membership
     #' @param rashomon.is.relative (`logical(1)`) Whether epsilon is relative to optimal score (`TRUE`) or absolute
     #'   (`FALSE`)
-    #' @param learner (`Learner`) Learner to optimize
+    #' @param learner (`Learner`) Surrogate model to use
     #' @param lse.beta (`numeric(1)`) Beta (scaling) parameter for LSE
     #' @param lse.epsilon (`numeric(1)`) Epsilon (accuracy) parameter for LSE
     #' @param search.grid.size (`integer(1)`) Number of samples to request in the initial batch
@@ -27,7 +27,7 @@ RashomonSamplerLSEImplicit <- R6Class("RashomonSamplerLSEImplicit",
         search.grid.size, seed, n.rashomon.samples) {
       super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
         search.grid.size, seed, n.rashomon.samples)
-      private$.lse.beta <- assertNumber(lse.beta, lower = 0, upper = 1, finite = TRUE)
+      private$.lse.beta <- assertNumber(lse.beta, lower = 0, finite = TRUE)
       private$.lse.epsilon <- assertNumber(lse.epsilon, lower = 0, upper = 1, finite = TRUE)
       private$.threshold <- if (minimize) Inf else -Inf
       private$.resultset <- getNullTable(domain, include.id = TRUE, include.score = TRUE)
@@ -51,8 +51,10 @@ RashomonSamplerLSEImplicit <- R6Class("RashomonSamplerLSEImplicit",
     .tellYValues = function(y) {
       super$.tellYValues(y)
     },
-    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, known.y.predicted,
+    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, known.y.predicted, known.y.predicted.sd,
         grid.known, grid.unknown, learner) {
+#if (sum(private$.search.grid[, !is.na(.score)]) == 132) browser()
+
 
       pred.index.to.fullindex <- private$.search.grid[, which(is.na(.score))]
       known.index.to.fullindex <- private$.search.grid[, which(!is.na(.score))]
@@ -72,13 +74,15 @@ RashomonSamplerLSEImplicit <- R6Class("RashomonSamplerLSEImplicit",
       mean.pred.full[pred.index.to.fullindex] <- mean.pred
       mean.pred.full[known.index.to.fullindex] <- known.y.predicted
 
+
+
       # Get confidence intervals
       interval.width <- sqrt(self$lse.beta) * sd.pred.full
       new.lower <- mean.pred.full - interval.width
       new.upper <- mean.pred.full + interval.width
       # update C(t) = Intersection(C(t-1), Q(t))
-      private$.metainfo[lower < new.lower, lower := new.lower]
-      private$.metainfo[upper > new.upper, upper := new.upper]
+      private$.metainfo[, lower := pmin(pmax(lower, new.lower), upper)]
+      private$.metainfo[, upper := pmax(pmin(upper, new.upper), lower)]
 
       opt.optimistic <- min(private$.metainfo$lower, private$.threshold)
       opt.pessimistic <- min(private$.metainfo$upper)
@@ -91,46 +95,75 @@ RashomonSamplerLSEImplicit <- R6Class("RashomonSamplerLSEImplicit",
         threshold.pessimistic <- opt.pessimistic + self$rashomon.epsilon
       }
 
+
       # candidate with upper bound (+ eps) below the worst-case threshold whose lower bound is above the worst-case
       # optimum is in the solution set, but not interesting any more for threshold change -> remove from search grid
       # altogether, but put into solution set.
       lgl.move.to.solution <- private$.metainfo[,
         in.candidate.set &
-        upper - self$lse.epsilon <= threshold.pessimistic &
+        upper - self$lse.epsilon <= threshold.optimistic &
         lower > opt.pessimistic
       ]
+      lgl.move.to.solution <- FALSE  # temporary measure
 
       # candidate with upper bound (+ eps) below the worst-case threshold whose lower bound is below the worst-case
       # optimum also goes into the solution set, but could still be interesting for updating threshold
       lgl.copy.to.solution <- private$.metainfo[,
         in.candidate.set &
-        upper - self$lse.epsilon <= threshold.pessimistic &
+        upper - self$lse.epsilon <= threshold.optimistic &
         lower <= opt.pessimistic
       ]
-      # TODO: stuff is monotonic, can do these things separately
-      index.to.solution <- which(lgl.to.solution)
-      index.to.discard <- which(lgl.to.discard)
-      index.to.keep <- which(!(lgl.to.solution | lgl.to.discard))
+
+      lgl.discard.altogether <- private$.metainfo[,
+        in.candidate.set &
+        lower + self$lse.epsilon > threshold.pessimistic &
+        lower > opt.pessimistic
+      ]
+
+      # the following is in case lse.epsilon is large
+      lgl.no.candidate.but.potential.opt <- private$.metainfo[,
+        in.candidate.set &
+        lower + self$lse.epsilon > threshold.pessimistic &
+        lower <= opt.pessimistic
+      ]
+
+      # this one may not be necessary
+      lgl.drop.completely <- private$.metainfo[,
+        !in.candidate.set & lower > opt.pessimistic
+      ]
+
+      # stuff is monotonic, can do these things separately
+      fullindex.to.solution <- which(lgl.move.to.solution | lgl.copy.to.solution)
+
+      # don't discard known samples
+      fullindex.to.discard <- which( (lgl.move.to.solution | lgl.discard.altogether | lgl.drop.completely) & private$.search.grid[, is.na(.score)])
+      index.to.keep <- which(!(lgl.move.to.solution | lgl.discard.altogether | lgl.drop.completely)[private$.search.grid[, is.na(.score)]])
+
+
       index.to.fullindex <- private$.search.grid[, which(is.na(.score))]
-      fullindex.to.keep <- index.to.fullindex[index.to.keep]
+      # fullindex.to.solution <- index.to.fullindex[index.to.solution]
+      # fullindex.to.discard <- index.to.fullindex[index.to.discard]
 
       # update solution set, "L"
       private$.resultset <- rbind(
         private$.resultset,
-        grid.unknown[index.to.solution]
+        private$.search.grid[fullindex.to.solution]
       )
+#      if (length(fullindex.to.solution) > 0) {
+#        write.table(private$.search.grid[fullindex.to.solution], file = stdout(), row.names = FALSE, col.names = FALSE, sep = ",")
+#      }
+
+      # remove from candidate set if copied or discarded, but could still be minimizers
+      private$.metainfo[lgl.no.candidate.but.potential.opt | lgl.copy.to.solution, in.candidate.set := FALSE]
+
       # update candidate set, "U"
       # ... of the total archive (need to use "fullindex", since samples with known Ys are also in here)
-      private$.search.grid <- private$.search.grid[fullindex.to.keep]
-      # ... of the learner predictions that we still need to aqf-fun optimize over
-      mean.pred <- mean.pred[index.to.keep]
-      sd.pred <- sd.pred[index.to.keep]
-      # ... of the intervals that we are tracking
-      private$.metainfo <- private$.metainfo[index.to.keep]
+      if (length(fullindex.to.discard)) {
+        private$.search.grid <- private$.search.grid[-fullindex.to.discard]
+        private$.metainfo <- private$.metainfo[-fullindex.to.discard]
+      }
 
-      ambiguity <- pmin(private$.metainfo$upper - private$.threshold, private$.threshold - private$.metainfo$lower)
-
-      index.to.keep[which.max(ambiguity)]
+      index.to.keep[which.max(  (private$.metainfo$upper - private$.metainfo$lower)[private$.search.grid[, is.na(.score)]]   )]
     },
     .getRashomonSamples = function() {
       self$askYValues()  # trigger model update. Fails if we don't have all samples, as it should.

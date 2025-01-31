@@ -30,9 +30,9 @@ withLocalSeed <- function(local.seed.var, expr) {
 
 getNullTable <- function(domain, include.id = FALSE, include.score = FALSE) {
   indt <- sapply(domain$ids(), function(x) numeric(0), simplify = FALSE)
-  table <- domain$qunif(as.data.frame(indt))
+  table <- copy(domain$qunif(as.data.frame(indt)))
   for (i in which(domain$is_categ)) {
-    table[[i]] <- factor(table[[i]], levels = domain$levels[[i]])
+    set(table, j = i, value = factor(table[[i]], levels = domain$levels[[i]]))
   }
   if (include.id) {
     set(table, j = ".id", value = integer(0))

@@ -58,7 +58,7 @@ test_that("RashomonSamplerOptimize initialization works", {
   expect_identical(sampler$id, "optimize")
   expect_identical(sampler$domain, domain)
   expect_true(sampler$minimize)
-  expect_equal(suppressWarnings(sampler$learner), learner)  # nolint
+  suppressWarnings(expect_equal(sampler$learner, learner))  # nolint
   expect_false(identical(sampler$learner, learner))
   expect_identical(sampler$search.grid.size, 30L)
 
@@ -218,7 +218,8 @@ test_that("RashomonSamplerOptimize handles optimization correctly", {
       }
       optimum <- sampler$getRashomonSamples()
       expect_equal(
-        results[.score == if (do.minimize) min(.score) else max(.score)][optimum[, .(.id)], on = ".id"],
+        results[.score == if (do.minimize) min(.score) else max(.score)][
+          optimum[, .(.id)], on = ".id"][, -".id", with = FALSE],
         optimum,
         ignore.col.order = TRUE
       )
@@ -270,5 +271,5 @@ test_that("RashomonSamplerOptimize handles first point selection correctly", {
 
   expect_identical(sampler$rashomonSamplesComplete(), 0L)
   expect_data_table(sampler$getRashomonSamples(), nrows = 0)
-  expect_names(names(sampler$getRashomonSamples()), permutation.of = c(".id", "x", ".score"))
+  expect_names(names(sampler$getRashomonSamples()), permutation.of = c("x", ".score"))
 })

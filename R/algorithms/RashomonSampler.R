@@ -186,7 +186,8 @@ RashomonSampler <- R6Class("RashomonSampler",
       result <- private$.getRashomonSamples()
       assertDataTable(result)
       assertNames(colnames(result), must.include = c(self$domain$ids(), ".score"))
-      result[, .(.score = mean(.score, na.rm = TRUE)), by = self$domain$ids()]
+      ids <- self$domain$ids()
+      result[, .(.score = mean(.score, na.rm = TRUE)), by = ids]
     },
 
     #' @description
@@ -464,3 +465,4 @@ RashomonSampler <- R6Class("RashomonSampler",
     }
   )
 )
+

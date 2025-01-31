@@ -193,3 +193,17 @@ for (evaluating in list(torun.minima, torun.samples)) {
     }, mc.cores = 90, mc.preschedule = FALSE)
   }
 }
+
+# simulation files
+
+set.seed(2)
+lapply(allred, function(x) x[is.grid == FALSE, .SD[sample.int(.N, min(8000, .N))], by = taskname]) -> allred.headed
+
+allds <- lapply(allred.headed, function(x) unique(x$taskname)) |> unlist() |> unique()
+
+allds.pivot <- sapply(allds, function(x) {
+  lapply(allred.headed, function(y) {
+    y[taskname == x]
+  })
+}, simplify = FALSE)
+
