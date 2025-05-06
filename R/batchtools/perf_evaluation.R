@@ -67,6 +67,7 @@ addExperimentsPerfEvaluation <- function(
   addExperiments(
     prob.designs = list(task_getter_problem = data.table(taskname = tasks)),
     algo.designs = algo.designs,
-    repls = repls
+    repls = repls,
+    reg = reg
   )
 }

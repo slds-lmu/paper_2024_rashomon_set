@@ -1,0 +1,23 @@
+[
+  {
+    "feature": 0,
+    "name": "feature1",
+    "reference": 1,
+    "relation": "==",
+    "type": "integral"
+  },
+  {
+    "feature": 1,
+    "name": "feature2",
+    "reference": 1,
+    "relation": "==",
+    "type": "integral"
+  },
+  {
+    "feature": 2,
+    "name": "feature3",
+    "reference": 1,
+    "relation": "==",
+    "type": "integral"
+  }
+]
