@@ -55,3 +55,5 @@
 registries/
 load_modules
 *.Rproj
+
+latex/

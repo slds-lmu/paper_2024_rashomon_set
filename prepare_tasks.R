@@ -1,3 +1,4 @@
+# Preparing the datasets from Xin et al. 2022, "Exploring the Whole Rashomon Set of Sparse Decision Trees"
 # more detail: https://arxiv.org/pdf/2209.08040
 
 # "car evaluation" dataset from UCI
@@ -8,11 +9,8 @@ saveRDS(data.car, "data/data_car.rds")
 data.monk2 <- fread("https://github.com/ubc-systopia/treeFarms/raw/refs/heads/main/experiments/datasets/monk_2/data.csv")
 saveRDS(data.monk2, "data/data_monk2.rds")
 
-# Penguin
-## not available
-
 # Breast cancer
-## not available
+## not there, use mlr3's version
 
 # Compas (binarized)
 data.compas.binarized <- fread("https://github.com/ubc-systopia/treeFarms/raw/refs/heads/main/experiments/datasets/compas/binned.csv")

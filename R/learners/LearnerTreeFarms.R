@@ -118,7 +118,7 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
       zerosample <- strrep("0", nchar(treecount))
       repeat {
         sample.first <- sample.int(firstdigit + 1L, 1) - 1L
-        sample.others <- sample.int(10, nchar(treecount) - 1L) - 1L
+        sample.others <- sample.int(10, nchar(treecount) - 1L, replace = TRUE) - 1L
         sample <- paste(as.character(c(sample.first, sample.others)), collapse = "")
         if (sample <= treecount && sample != zerosample) break
       }
