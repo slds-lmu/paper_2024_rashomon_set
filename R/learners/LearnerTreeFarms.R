@@ -29,55 +29,57 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
     initialize = function() {
       ps <- ps(
         # Selected tree
-        selected_tree = p_int(lower = 1L, init = 1L, tags = c("predict", "required")), # which tree to use for prediction
+        selected_tree = p_uty(tags = c("predict", "required"), init = "1", custom_check = mlr3misc::crate(function(x) {
+          checkString(x, pattern = "^[1-9][0-9]*$")
+        })), # which tree to use for prediction  # nolint
         # Key Parameters
-        regularization = p_dbl(lower = 0, upper = 1, default = 0.05, tags = c("train", "treefarms")), # shoud be larger than 1 / #samples
-        rashomon = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # if false, only fit best tree
+        regularization = p_dbl(lower = 0, upper = 1, default = 0.05, tags = c("train", "treefarms")), # shoud be larger than 1 / #samples  # nolint
+        rashomon = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # if false, only fit best tree. `FALSE` DOES NOT APPEAR TO WORK  # nolint
 
         # Rashomon-specific configs
-        rashomon_bound_multiplier = p_dbl(lower = 0, default = 0.05, tags = c("train", "treefarms")), # If set, uses this * (optimal_objective) as bound.
+        rashomon_bound_multiplier = p_dbl(lower = 0, default = 0.05, tags = c("train", "treefarms")), # If set, uses this * (optimal_objective) as bound.  # nolint
         rashomon_bound = p_dbl(lower = 0, tags = c("train", "treefarms")), # Absolute objective bound
         rashomon_bound_adder = p_dbl(lower = 0, tags = c("train", "treefarms")), # Adder to optimal objective for bound
 
         # File Output (Generally not needed for mlr3 integration, but available)
         output_accuracy_model_set = p_lgl(default = FALSE, tags = c("train", "treefarms")),
-        output_covered_sets = p_uty(default = list(), tags = c("train", "treefarms")), # Array of strings e.g., c('f1', 'bacc', 'auc')
+        output_covered_sets = p_uty(default = list(), tags = c("train", "treefarms")), # Array of strings e.g., c('f1', 'bacc', 'auc')  # nolint
         covered_sets_thresholds = p_uty(default = list(), tags = c("train", "treefarms")), # Array of doubles
         rashomon_model_set_suffix = p_uty(default = "", tags = c("train", "treefarms")),
         rashomon_ignore_trivial_extensions = p_lgl(default = TRUE, tags = c("train", "treefarms")),
         rashomon_trie = p_uty(default = "", tags = c("train", "treefarms")), # Path to output trie file
 
         # Limits
-        depth_budget = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # max tree depth, 0 = unlimited
-        tile_limit = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # Undocumented in README text, assuming 0 = default/special
-        precision_limit = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # 0 = no limit
-        stack_limit = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # 0 = use heap
-        minimum_captured_points = p_int(lower = 0L, default = 0L, tags = c("train", "treefarms")), # Undocumented in README text
+        depth_budget = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # max tree depth, 0 = unlimited  # nolint
+        tile_limit = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # Undocumented in README text, assuming 0 = default/special  # nolint
+        precision_limit = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # 0 = no limit  # nolint
+        stack_limit = p_int(lower = 1L, default = 0L, special_vals = list(0L), tags = c("train", "treefarms")), # 0 = use heap  # nolint
+        minimum_captured_points = p_int(lower = 0L, default = 0L, tags = c("train", "treefarms")), # Undocumented in README text  # nolint
 
         # Tuners
-        uncertainty_tolerance = p_dbl(lower = 0, upper = 1, default = 0.0, tags = c("train", "treefarms")),  # allow early termination
-        upperbound = p_dbl(lower = 0, upper = 1, default = 0.0, tags = c("train", "treefarms")), # limit risk of model search space (default 0.0 implies max possible risk)
+        uncertainty_tolerance = p_dbl(lower = 0, upper = 1, default = 0.0, tags = c("train", "treefarms")),  # allow early termination  # nolint
+        upperbound = p_dbl(lower = 0, upper = 1, default = 0.0, tags = c("train", "treefarms")), # limit risk of model search space (default 0.0 implies max possible risk)  # nolint
 
         # Execution Control
         time_limit = p_dbl(lower = 0, default = 0, tags = c("train", "treefarms")), # 0 = no limit
-        worker_limit = p_int(lower = 1L, default = 1L, special_vals = list(0L), tags = c("train", "treefarms")), # 0 = #cores
+        worker_limit = p_int(lower = 1L, default = 1L, special_vals = list(0L), tags = c("train", "treefarms")), # 0 = #cores  # nolint
 
         # Flags
-        balance = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # sample importance: equal weights to all classes
-        cancellation = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # propagate up the dependency graph of task cancellations
-        look_ahead = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # one-step look-ahead bound via scopes
-        similar_support = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # similar support bound via distance index
-        feature_exchange = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # prune pairs of features using subset comparison
-        continuous_feature_exchange = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # prune pairs of continuous features
-        feature_transform = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # equivalence discovery through simple feature transformations
-        rule_list = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # rule-list constraints on models
-        non_binary = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # non-binary encoding (support for non-binary features?)
+        balance = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # sample importance: equal weights to all classes  # nolint
+        cancellation = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # propagate up the dependency graph of task cancellations  # nolint
+        look_ahead = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # one-step look-ahead bound via scopes  # nolint
+        similar_support = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # similar support bound via distance index  # nolint
+        feature_exchange = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # prune pairs of features using subset comparison  # nolint
+        continuous_feature_exchange = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # prune pairs of continuous features  # nolint
+        feature_transform = p_lgl(default = TRUE, tags = c("train", "treefarms")),  # equivalence discovery through simple feature transformations  # nolint
+        rule_list = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # rule-list constraints on models  # nolint
+        non_binary = p_lgl(default = FALSE, tags = c("train", "treefarms")),  # non-binary encoding (support for non-binary features?)  # nolint
 
-        costs = p_uty(default = "", tags = c("train", "treefarms")), # input: cost matrix; must contain path to cost matrix CSV
+        costs = p_uty(default = "", tags = c("train", "treefarms")), # input: cost matrix; must contain path to cost matrix CSV  # nolint
 
         # Output & Diagnostics
         diagnostics = p_lgl(default = FALSE, tags = c("train", "treefarms")),
-        verbose = p_lgl(default = FALSE, tags = c("train", "treefarms")), # Defaulting to FALSE for less noisy mlr3 runs
+        verbose = p_lgl(default = FALSE, tags = c("train", "treefarms")), # Defaulting to FALSE for less noisy mlr3 runs  # nolint
 
         # Low-Level File Output (Paths - generally avoid in mlr3 unless needed for specific debugging)
         model = p_uty(default = "", tags = c("train", "treefarms")), # Path for output model file
@@ -86,19 +88,41 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
         trace = p_uty(default = "", tags = c("train", "treefarms")), # Path for trace visualization dir
         tree = p_uty(default = "", tags = c("train", "treefarms")), # Path for trace-tree visualization dir
         datatset_encoding = p_uty(default = "", tags = c("train", "treefarms")), # Undocumented in README text
-        memory_checkpoints = p_uty(default = list(), tags = c("train", "treefarms")) # Undocumented in README text
+        memory_checkpoints = p_uty(default = list(), tags = c("train", "treefarms")), # Undocumented in README text
+        model_limit = p_int(lower = 1, default = 10000, special_vals = list(0L), tags = c("train", "treefarms")) # Undocumented  # nolint
 
       )
 
       super$initialize(
         id = "classif.treefarms",
         param_set = ps,
-        predict_types = c("response", "prob"), # TODO: maybe prob as well
+        predict_types = c("response", "prob"),
         feature_types = c("logical", "integer", "numeric"), # actually, only 0 / 1 features are supported
-        properties = c("twoclass", "multiclass"), # TODO need to check whether multiclass is supported
+        properties = "twoclass", # TODO need to check whether multiclass is supported
         packages = c("reticulate", "jsonlite", "utils", "partykit"),
         label = "TreeFarms Sparse Decision Tree"
       )
+    },
+
+    #' @description
+    #' Sample a tree from the model container.
+    #' Handles the case where the tree count is a Python big integer.
+    #'
+    #' Not efficient, but (hopefully) correct.
+    #' @return A tree from the model container.
+    sampleTreeIndex = function() {
+      treecount <- self$tree.count
+      if (treecount == "0") stop("Model was not fitted.")
+      assertString(treecount, pattern = "^[0-9]+$")
+      firstdigit <- as.integer(substr(treecount, 1, 1)) + 1L
+      zerosample <- strrep("0", nchar(treecount))
+      repeat {
+        sample.first <- sample.int(firstdigit + 1L, 1) - 1L
+        sample.others <- sample.int(10, nchar(treecount) - 1L) - 1L
+        sample <- paste(as.character(c(sample.first, sample.others)), collapse = "")
+        if (sample <= treecount && sample != zerosample) break
+      }
+      sub("^0+", "", sample)  # we return the string!
     }
   ),
 
@@ -110,18 +134,18 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
           is.null(private$.modelcontainer.id) || private$.modelcontainer.id != address(self$model$result)) {
         if (is.null(self$model)) return(NULL)  # not trained yet
         # recreate model container from stored JSON
-        py <- reticulate::py
-        py$TREEFARMS_jsonloader <- reticulate::import("json")$loads
-        py$TREEFARMS_ModelSetContainer <- reticulate::import("treefarms.model.model_set")$ModelSetContainer
 
-        reticulate::py_run_string(
-          "TREEFARMS_mscgen = lambda result: TREEFARMS_ModelSetContainer(TREEFARMS_jsonloader(result))"
-        )
-        private$.modelcontainer <- py$TREEFARMS_mscgen(self$model$result)
+        js <- reticulate::py_call(reticulate::import("json")$loads, self$model$result)
+        private$.modelcontainer <- reticulate::import("treefarms.model.model_set")$ModelSetContainer(js)
         private$.modelcontainer.id <- address(self$model$result)
         private$.partycache <- NULL  # reset cached party object
       }
       return(private$.modelcontainer)
+    },
+    tree.count = function() {
+      if (is.null(self$modelcontainer)) return("0")
+      # the following could be a python big integer with arbitrary number of digits, so we convert to string
+      as.character(reticulate::py_call(self$modelcontainer$get_tree_count))
     }
   ),
 
@@ -143,8 +167,7 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
 
       reticulate::py_set_seed(sample.int(.Machine$integer.max, 1))
       # Import Python modules
-      tf.module <- reticulate::import("treefarms.libgosdt", delay_load = TRUE)
-      json.module <- reticulate::import("json", delay_load = TRUE)
+      tf.module <- reticulate::import("treefarms.libgosdt")
 
       # Get parameters
       defaults <- self$param_set$default
@@ -153,10 +176,21 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
 
       # Handle mutually exclusive Rashomon bounds (error if more than one is set)
       mutex <- c("rashomon_bound_multiplier", "rashomon_bound", "rashomon_bound_adder")
+
+      if (sum(mutex %in% names(pv)) > 1) {
+        stop("Only one of 'rashomon_bound_multiplier', 'rashomon_bound', or 'rashomon_bound_adder' can be set.")
+      }
+
       if (any(mutex %in% names(pv))) {
         # if any of the rashomon bounds are given, we don't do default behaviour
-        # otherwise we get the mutex error further down when both default and user input are given
-        defaults$rashomon_bound_multiplier <- NULL
+        # instead, we need to set this to 0 to overwrite C++ internal value from last invocation
+        defaults$rashomon_bound_multiplier <- 0
+      }
+      defaults$rashomon_bound_adder <- 0
+      defaults$rashomon_bound <- 0
+
+      if ("rashomon_bound" %in% names(pv) && pv$rashomon_bound == 0) {
+        stop("For an implementation specific reason, rashomon_bound can not be 0.")
       }
 
       pv <- mlr3misc::insert_named(defaults, pv)  # treefarms CPP backend is stateful, so need to reset to defaults
@@ -169,9 +203,6 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
         }
       }
 
-      if (sum(mutex %in% names(pv)) > 1) {
-        stop("Only one of 'rashomon_bound_multiplier', 'rashomon_bound', or 'rashomon_bound_adder' can be set.")
-      }
 
       # Create JSON configuration
       pv.json <- jsonlite::toJSON(pv, auto_unbox = TRUE)
@@ -223,15 +254,20 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
       newdata <- task$data(cols = task$feature_names)
 
       # Check if any trees were found
-      treecount <- self$modelcontainer$get_tree_count()
+      treecount <- self$tree.count
+      selected.tree <- pv$selected_tree
+      ndigits <- nchar(treecount)
+      selected.tree.padded <- chartr(" ", "0", sprintf("%*s", ndigits, selected.tree))
 
-      if (pv$selected_tree > treecount) {
-        stop(sprintf("Selected tree index %d is out of range (only %d trees found).", pv$selected_tree, treecount))
+      if (ndigits < nchar(selected.tree.padded) || selected.tree.padded > treecount) {
+        stop(sprintf("Selected tree index %d is out of range (only %d trees found).", selected_tree, treecount))
       }
+
+      selected.tree.pyint <- reticulate::py_eval(paste0(selected.tree, "-1"), convert = FALSE)
 
       pred.prob <- NULL
 
-      predictions <- self$modelcontainer[[pv$selected_tree - 1L]]$predict(newdata)
+      predictions <- self$modelcontainer$get_tree_at_idx(selected.tree.pyint)$predict(newdata)
       pred.response <- factor(predictions, levels = c(0L, 1L), labels = self$model$target.levels)
 
       if (self$predict_type == "prob") {
@@ -240,7 +276,7 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
         }
         if (is.null(private$.partycache) || is.null(private$.partycache.tree) ||
             private$.partycache.tree != pv$selected_tree) {
-          private$.partycache <- jsonToParty(self$modelcontainer[[pv$selected_tree - 1L]]$json())
+          private$.partycache <- jsonToParty(self$modelcontainer$get_tree_at_idx(selected.tree.pyint)$json())
           private$.partycache.tree <- pv$selected_tree
           private$.partycache$transformtbl <- copy(self$model$data)[,
             node := partykit::fitted_node(private$.partycache$tree, .SD), .SDcols = patterns("^V[0-9]+$")][,

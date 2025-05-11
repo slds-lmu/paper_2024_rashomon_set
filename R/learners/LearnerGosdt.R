@@ -27,10 +27,10 @@ LearnerClassifGosdt <- R6::R6Class("LearnerClassifGosdt",
     initialize = function() {
       ps <- ps(
         # Core GOSDT Parameters
-        regularization = p_dbl(lower = 0, default = 0.05, tags = c("train", "gosdt")), # Complexity penalty
+        regularization = p_dbl(lower = 0, upper = 0.5, default = 0.05, tags = c("train", "gosdt")), # Complexity penalty. Segfaults may occur when > 0.5  # nolint
         depth_budget = p_int(lower = 0L, tags = c("train", "gosdt")), # Max depth, 0 = just root node
         time_limit = p_dbl(lower = 0, tags = c("train", "gosdt")), # Max time in seconds
-        allow_small_reg = p_lgl(default = FALSE, tags = c("train", "gosdt")), # Allow potentially slow runs with regularization < 1 / nrow
+        allow_small_reg = p_lgl(default = FALSE, tags = c("train", "gosdt")), # Allow potentially slow runs with regularization < 1 / nrow  # nolint
 
         balance = p_lgl(default = FALSE, tags = c("train", "gosdt")), # Balance class weights
 
@@ -39,9 +39,9 @@ LearnerClassifGosdt <- R6::R6Class("LearnerClassifGosdt",
         similar_support = p_lgl(default = TRUE, tags = c("train", "gosdt")), # Use similar support bound
         rule_list = p_lgl(default = FALSE, tags = c("train", "gosdt")), # Use rule list constraints
 
-        uncertainty_tolerance = p_dbl(lower = 0, default = 0, tags = c("train", "gosdt")), # Precision limit for objective
+        uncertainty_tolerance = p_dbl(lower = 0, default = 0, tags = c("train", "gosdt")), # Precision limit for objective  # nolint
         upperbound_guess = p_dbl(lower = 0, upper = 1, tags = c("train", "gosdt")), # Initial upper bound on objective
-        worker_limit = p_int(lower = 1L, default = 1L, special_vals = list(0L), tags = c("train", "gosdt")), # Max threads, 0 = auto (?)
+        worker_limit = p_int(lower = 1L, default = 1L, special_vals = list(0L), tags = c("train", "gosdt")), # Max threads, 0 = auto (?)  # nolint
 
         debug = p_lgl(default = FALSE, tags = c("train", "gosdt")), # Enable debug mode
         diagnostics = p_lgl(default = FALSE, tags = c("train", "gosdt")), # Enable diagnostics
@@ -75,11 +75,15 @@ LearnerClassifGosdt <- R6::R6Class("LearnerClassifGosdt",
       feats.dt <- task$data(cols = task$feature_names)
       colnames(feats.dt) <- paste0("V", seq_len(ncol(feats.dt)))
       feats <- as.matrix(feats.dt)
-      mode(feats) <- "numeric"
 
       if (!all(feats %in% c(0, 1))) {
-        stop("Learner 'classif.gosdt' expects binary features (0/1). Non-binary features detected. GOSDT might fail or produce unexpected results.")
+        # TODO: note: gosdt may be able to handle continuous features,
+        # although this leads to combinatorial explosion in many cases.
+        # May want to support this in the future.
+        stop("Learner 'classif.gosdt' expects binary features (0/1). Non-binary features detected. GOSDT might fail or produce unexpected results.")  # nolint
       }
+
+      mode(feats) <- "integer"
 
       target <- task$data(cols = task$target_names)[[1]]
       y <- as.integer(target) - 1L
@@ -114,7 +118,6 @@ LearnerClassifGosdt <- R6::R6Class("LearnerClassifGosdt",
       # --- Prediction --- #
       pred.response <- NULL
       pred.prob <- NULL
-
 
       pred.nodes <- partykit::fitted_node(self$model$party.list$tree, newdata.dt)
       # Response Prediction

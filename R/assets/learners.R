@@ -111,8 +111,9 @@ learner.svm.classif <- as_learner(po("encode", method = "treatment") %>>!%
 
 learner.gosdt <- LearnerClassifGosdt$new()
 learner.gosdt$predict_type = "prob"
-learner.gosdt$param_set$values$regularization <- to_tune(1e-4, 1, logscale = TRUE)
+learner.gosdt$param_set$values$regularization <- to_tune(1e-4, 0.49, logscale = TRUE)
 learner.gosdt$param_set$values$balance <- to_tune()
+learner.gosdt$param_set$values$depth_budget <- to_tune(1, 100, logscale = TRUE)
 learner.gosdt$param_set$values$allow_small_reg <- TRUE
 
 
