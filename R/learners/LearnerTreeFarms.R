@@ -134,9 +134,19 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
           is.null(private$.modelcontainer.id) || private$.modelcontainer.id != address(self$model$result)) {
         if (is.null(self$model)) return(NULL)  # not trained yet
         # recreate model container from stored JSON
-
-        js <- reticulate::py_call(reticulate::import("json")$loads, self$model$result)
-        private$.modelcontainer <- reticulate::import("treefarms.model.model_set")$ModelSetContainer(js)
+        py <- reticulate::py
+        py$loads <- reticulate::import("json")$loads
+        py$modelsetcontainer <- reticulate::import("treefarms.model.model_set")$ModelSetContainer
+        py$result <- as.raw(self$model$result)  # should be raw already, but just in case
+        reticulate::py_run_string("msc = modelsetcontainer(loads(result))")
+        # the following would be more elegant, but we try to avoid permanent objects
+        # js <- reticulate::py_call(reticulate::import("json")$loads, self$model$result)
+        private$.modelcontainer <- py$msc
+        reticulate::py_run_string("del modelsetcontainer")
+        reticulate::py_run_string("del loads")
+        reticulate::py_run_string("del result")
+        reticulate::py_run_string("del msc")
+        reticulate::import("gc")$collect()
         private$.modelcontainer.id <- address(self$model$result)
         private$.partycache <- NULL  # reset cached party object
       }
@@ -224,7 +234,16 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
 
       # Configure and fit
       tf.module$configure(pv.json)
-      timing <- system.time({tf.result <- tf.module$fit(data.csv)}, gcFirst = FALSE)
+      py <- reticulate::py
+      timing <- system.time({py$tfresult <- reticulate::py_call(tf.module$fit, data.csv)}, gcFirst = FALSE)
+      reticulate::py_run_string("tfresulthead = tfresult[:1000]")
+      tf.result.head <- py$tfresulthead
+      reticulate::py_run_string("tfresultraw = tfresult.encode('utf-8')")
+      tf.result <- as.raw(py$tfresultraw)
+      reticulate::py_run_string("del tfresult")
+      reticulate::py_run_string("del tfresulthead")
+      reticulate::py_run_string("del tfresultraw")
+      reticulate::import("gc")$collect()
       tf.status <- tf.module$status() # 0 = success, 2 = timeout, other = error
 
       info <- list(timing.raw = timing, timing = timing, result = tf.result, timeout = FALSE, config = pv.json,
@@ -240,7 +259,7 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
         info$timeout <- TRUE
         info$timing[] <- -1
       } else if (tf.status != 0) {
-         stop(sprintf("TreeFarms training failed with status %d. Result:\n%s", tf.status, tf.result))
+         stop(sprintf("TreeFarms training failed with status %d. Result:\n%s", tf.status, tf.result.head))
       }
 
       info  # model

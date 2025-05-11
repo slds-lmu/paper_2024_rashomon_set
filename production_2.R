@@ -14,9 +14,6 @@ addProblemTaskGetter(reg.tree)
 addAlgorithmPerfEvaluation(reg.tree, "tree")
 addExperimentsPerfEvaluation(reg.tree, "tree", 1e4, grid = FALSE, tasks = newtasks)
 
-
-
-
 reg.nnet <- getRegistry("../registry_paper_2024_rashomon_set_nnet/registry4", make.default = TRUE)
 addProblemTaskGetter(reg.nnet)
 addAlgorithmPerfEvaluation(reg.nnet, "nnet")

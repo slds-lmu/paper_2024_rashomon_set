@@ -4,14 +4,14 @@ source("init.R")
 
 
 
-reg.treefarms <- getRegistry("../registry_paper_2024_rashomon_set_treefarms/registry", make.default = TRUE)
+reg.treefarms <- getRegistry("../registry_paper_2024_rashomon_set_treefarms/registry2", make.default = TRUE)
 
 
-treefitter <- function(data, instance, job, offset, ...) {
+treefitter <- function(data, instance, job, offset, balance, ...) {
   learner.tf <- LearnerClassifTreeFarms$new()
-  learner.tf$predict_type = "prob"
+  learner.tf$predict_type <- "prob"
   learner.tf$param_set$values$regularization <- 0.01
-  learner.tf$param_set$values$balance <- TRUE
+  learner.tf$param_set$values$balance <- balance
   learner.tf$param_set$values$rashomon_bound_adder <- offset
 
   learner.tf$train(instance)
@@ -24,18 +24,19 @@ addProblemTaskGetter(reg.treefarms)
 
 addExperiments(
   prob.designs = list(task_getter_problem = data.table(taskname = names(list.tasks.binarized))),
-  algo.designs = list(treefitter = data.table(offset = c(0.05, 0.1, 0.15))),
+  algo.designs = list(treefitter = CJ(offset = c(0.05, 0.1, 0.15), balance = c(TRUE, FALSE))),
   repls = 1,
   reg = reg.treefarms
 )
 
-submitJobs(findExperiments(prob.pars = taskname == "mk", reg = reg.treefarms),
-  resources = list(ncpus = 1, memory = 102400, walltime = 3600 * 3), reg = reg.treefarms)
-
 submitJobs(findExperiments(prob.pars = taskname == "fc.bin", reg = reg.treefarms),
   resources = list(ncpus = 1, memory = 204800, walltime = 3600 * 3), reg = reg.treefarms)
 
-submitJobs(resources = list(ncpus = 1, memory = 50000, walltime = 3600 * 3), reg = reg.treefarms)
+submitJobs(findExperiments(prob.pars = taskname == "mk", reg = reg.treefarms),
+  resources = list(ncpus = 1, memory = 102400, walltime = 3600 * 3), reg = reg.treefarms)
+
+submitJobs(findExperiments(prob.pars = !taskname %in% c("fc.bin", "mk"), reg = reg.treefarms),
+  resources = list(ncpus = 1, memory = 50000, walltime = 3600 * 3), reg = reg.treefarms)
 
 
 # # most take around 16 gb; fico needs 64 gb
