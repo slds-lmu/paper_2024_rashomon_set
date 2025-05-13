@@ -152,19 +152,15 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
 
       chunks <- split(seq_len(nrow(grid.unknown)), 1 + floor((seq_len(nrow(grid.unknown)) - 1) / private$.chunk.size))
 
-      scaled.excess.variance.improvement <- numeric(nrow(grid.unknown))
-      offset.m <- sum(pmax(interval.width[private$.M]^2 - eta.i^2, 0))
-      offset.u <- sum(pmax(interval.width[private$.U]^2 - eta.i^2, 0))
-      for (chnk in chunks) {
-        tchunk <- as_task_regr(grid.unknown[chnk, -".id", with = FALSE], target = ".score", id = "unknown")
-        scaled.excess.variance.improvement[chnk] <- (
-          # excess variance improvement for maximum
-          offset.m - colSums(pmax(learner$predictConditionalSE(tchunk, task.m)^2 - eta.i^2, 0)) +
-          # excess variance improvement for threshold
-          (offset.u - colSums(pmax(learner$predictConditionalSE(tchunk, task.u)^2 - eta.i^2, 0))) / m.interval.factor
-        )
-      }
-
+      newpoints <- as_task_regr(grid.unknown[, -".id", with = FALSE], target = ".score", id = "unknown")
+      scaled.excess.variance.improvement <- (
+        # excess variance improvement for maximum
+        colSums(learner$totalScaledExcessVarianceReduction(newpoints, task.m,
+          sqrt.beta.i^2, eta.i, private$.chunk.size)) +
+        # excess variance improvement for threshold
+        colSums(learner$totalScaledExcessVarianceReduction(newpoints, task.u,
+          sqrt.beta.i^2, eta.i, private$.chunk.size)) / m.interval.factor
+      )
 
       which.max(scaled.excess.variance.improvement)
     }

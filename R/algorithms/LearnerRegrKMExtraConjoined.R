@@ -93,7 +93,8 @@ LearnerRegrKMExtraConjoined <- R6Class("LearnerRegrKMExtraConjoined",
     #'   This is for debugging only and should always be `TRUE`.
     #' @return [`numeric(1)`]\cr
     #'   The total scaled excess variance reduction.
-    totalScaledExcessVarianceReduction = function(new.points.task, query.task, beta, eta, chunk.size = Inf, use.subgrids = TRUE) {
+    totalScaledExcessVarianceReduction = function(new.points.task, query.task, beta, eta, chunk.size = Inf,
+        use.subgrids = TRUE) {
       # we make use of the fact that the total scaled excess var reduction is 0 whenever a new point is
       # on a different subspace than a given query point.
       # We thus don't need to construct the entire new.points x query.points matrix, only the
