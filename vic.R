@@ -6,17 +6,11 @@ library(tidyr)
 library(data.table)
 
 
-
-# Registry: 
-# "/media/external/ewaldf/bs"
-# "/media/external/ewaldf/bs_xgb"
-regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/bs_xgb",
-                              source = "init.R",
-                              packages = c("iml", "GGally", "patchwork")
-)
+# writeable = TRUE only once !!!!
+regr = batchtools::loadRegistry("XXX", writeable = TRUE)
 
 # Define Cluster-Configurations
-regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 7)
+regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 12)
 
 # Define Problem
 addProblem("fromlist", fun = function(data, job, taskname) {
@@ -95,18 +89,25 @@ run_models = readRDS("/media/external/rashomon/datafiles/model_info/run_models.r
 run_models_2 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_2.rds")
 # (xgb) x (bs,gc, cs,st)
 run_models_3 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_3.rds")
+# (nnet) x all
+run_models_4 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_nnet.rds")
+# (svm) x all
+run_models_5 = readRDS("/media/external/rashomon/datafiles/model_info/run_models_svm.rds")
 
 run_models_no = data.table(sapply(run_models$torun.samples, function(x) table(x$taskname))[c("gc", "bs"), c("tree", "glmnet")], keep.rownames = TRUE)
 run_models_no = merge(run_models_no, data.table(sapply(run_models_2$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), all = TRUE)
 run_models_no = merge(run_models_no, data.table(sapply(run_models_3$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), by = "rn")
+run_models_no = merge(run_models_no, data.table(sapply(run_models_4$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), by = "rn")
+run_models_no = merge(run_models_no, data.table(sapply(run_models_5$torun.samples, function(x) table(x$taskname)), keep.rownames = TRUE), by = "rn")
 # change the following 2 lines
-pre_design = data.table(pivot_longer(run_models_no[1,], !rn, names_to = "learnername", values_to = "count"))
+pre_design = data.table(pivot_longer(run_models_no[3,], !rn, names_to = "learnername", values_to = "count"))
 design = pre_design[, .(rn = rep(rn, each = count),
                         learnername = rep(learnername, each = count),
                         model.no = sequence(count)), by = .(rn, learnername)]
 design = design[,-(1:2)]
 rm(run_models, run_models_2, run_models_3, run_models_no)
-save(pre_design, design, file = paste0("data/design_", design$rn[1], ".RData"))
+# save(pre_design, design, file = paste0("data/design.RData"))
+# save(pre_design, design, file = paste0("data/design_", design$rn[1], ".RData"))
 
 addExperiments(
   prob.designs = list(fromlist = data.table(taskname = design$rn)),
@@ -124,7 +125,9 @@ waitForJobs()
 
 
 #### Extract results ###########################################################
-setDefaultRegistry(regr)
+# writeable = TRUE only once !!!!
+regr = batchtools::loadRegistry("/media/external/XXX/bs_nnet_svm", writeable = TRUE)
+# setDefaultRegistry(regr)
 
 ## save results per data set and learner
 save_results = function(job_table, ids, learnername){
