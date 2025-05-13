@@ -11,7 +11,13 @@ list.tasks <- list(
   gc = task.gc,
   cs = task.cs,
   bs = task.bs,
-  st = task.st
+  st = task.st,
+  cr = task.car,
+  mk = task.monk2,
+  bc = task.breast.cancer,
+  cs.bin = task.compas.binarized,
+  fc = task.fico,
+  fc.bin = task.fico.binarized
 )
 
 
@@ -28,5 +34,14 @@ list.learners.classif <- list(
   tree = learner.tree.classif,
   nnet = learner.nnet.classif,
   glmnet = learner.classif.glmnet,
-  svm = learner.svm.classif
+  svm = learner.svm.classif,
+  gosdt = learner.gosdt
+)
+
+list.tasks.binarized <- list(
+  cr = task.car,
+  mk = task.monk2,
+  bc = task.breast.cancer,
+  cs.bin = task.compas.binarized,
+  fc.bin = task.fico.binarized
 )

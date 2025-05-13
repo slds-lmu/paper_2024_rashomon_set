@@ -1,6 +1,4 @@
 
-# MARSIN
-# model-agnostic rashomon set inference
 
 readRDS("data/run_models.rds")$torun.samples |> names()
 readRDS("data/run_models.rds")$torun.samples |> names()

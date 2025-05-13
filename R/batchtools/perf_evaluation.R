@@ -48,10 +48,17 @@ addExperimentsPerfEvaluation <- function(
     repls = resampling.reps.inner,
     seed = 1
 ) {
-  assertChoice(learner, names(list.learners.regr))
+  assertChoice(learner, union(names(list.learners.regr), names(list.learners.classif)))
   assertSubset(tasks, names(list.tasks))
 
-  learner.object <- list.learners.regr[[learner]]
+  learner.object <- if (learner %in% names(list.learners.regr)) {
+    list.learners.regr[[learner]]
+  } else {
+    if (!all(vapply(list.tasks[tasks], inherits, "TaskClassif", FUN.VALUE = logical(1)))) {
+      stop(sprintf("Learner %s is not a regression learner, but some tasks are classification tasks.", learner))
+    }
+    list.learners.classif[[learner]]
+  }
   ss <- learner.object$param_set$search_space()
 
   if (grid) {
@@ -67,6 +74,7 @@ addExperimentsPerfEvaluation <- function(
   addExperiments(
     prob.designs = list(task_getter_problem = data.table(taskname = tasks)),
     algo.designs = algo.designs,
-    repls = repls
+    repls = repls,
+    reg = reg
   )
 }

@@ -43,3 +43,41 @@ sampleSyntheticTask <- function(n, seed = 1) {
 }
 
 task.st <- sampleSyntheticTask(10000)
+
+data.car <- readRDS("data/data_car.rds")
+task.car <- as_task_classif(data.car, target = "class_1", id = "car")
+
+data.monk2 <- readRDS("data/data_monk2.rds")
+task.monk2 <- as_task_classif(data.monk2, target = "class_1", id = "monk2")
+
+data.breast.cancer <- tsk("breast_cancer")$data()[, .(
+  cl_thickness_10 = as.integer(cl_thickness == "10"),
+  cell_size_1 = as.integer(cell_size == "1"),
+  cell_size_10 = as.integer(cell_size == "10"),
+  cell_shape_1 = as.integer(cell_shape == "1"),
+  marg_adhesion_1 = as.integer(marg_adhesion == "1"),
+  epith_c_size_2 = as.integer(epith_c_size == "2"),
+  bare_nuclei_10 = as.integer(bare_nuclei == "10"),
+  normal_nucleoli_1 = as.integer(normal_nucleoli == "1"),
+  normal_nucleoli_10 = as.integer(normal_nucleoli == "10"),
+  class
+  )
+]
+task.breast.cancer <- as_task_classif(data.breast.cancer, target = "class", id = "breast_cancer")
+
+data.compas.binarized <- readRDS("data/data_compas-binarized.rds")
+setnames(data.compas.binarized, make.names(colnames(data.compas.binarized)))
+task.compas.binarized <- as_task_classif(data.compas.binarized,
+  target = "recidivate.within.two.years.1", id = "compas_binarized"
+)
+
+data.fico <- readRDS("data/data_fico.rds")
+setnames(data.fico, make.names(colnames(data.fico)))
+task.fico <- as_task_classif(data.fico, target = "PoorRiskPerformance", id = "fico")
+
+data.fico.binarized <- readRDS("data/data_fico-binarized.rds")
+setnames(data.fico.binarized, make.names(colnames(data.fico.binarized)))
+task.fico.binarized <- as_task_classif(data.fico.binarized,
+  target = "RiskPerform", id = "fico_binarized"
+)
+
