@@ -279,7 +279,7 @@ LearnerClassifTreeFarms <- R6::R6Class("LearnerClassifTreeFarms",
       selected.tree.padded <- chartr(" ", "0", sprintf("%*s", ndigits, selected.tree))
 
       if (ndigits < nchar(selected.tree.padded) || selected.tree.padded > treecount) {
-        stop(sprintf("Selected tree index %d is out of range (only %d trees found).", selected_tree, treecount))
+        stop(sprintf("Selected tree index %d is out of range (only %d trees found).", selected.tree, treecount))
       }
 
       selected.tree.pyint <- reticulate::py_eval(paste0(selected.tree, "-1"), convert = FALSE)
