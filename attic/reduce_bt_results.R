@@ -8,8 +8,6 @@ results.glmnet <- reduceResultsList(jt.glmnet.unwrap$job.id)
 results.glmnet.table <- lapply(results.glmnet, unlist, recursive = FALSE) |> rbindlist(fill = TRUE)
 fulltable.glmnet <- cbind(jt.glmnet.unwrap, results.glmnet.table)
 
-
-
 collens <- sapply(fulltable.glmnet, function(x) length(unique(x, useNA = "ifany")) == 1)
 
 fulltable.glmnet[, (names(collens[collens == TRUE])) := NULL]

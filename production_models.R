@@ -36,49 +36,25 @@ reduceTables <- function(table, lname, params = NULL) {
   ]
 }
 
-sliceTables <- function(table, lname, params = NULL) {
-  if (is.null(params)) {
-    bycols <- c("taskname", grep(sprintf("^(config\\.)?%s\\.", lname), colnames(table), value = TRUE))
-  } else {
-    bycols <- c("taskname", params, paste0("config.", params))
-  }
-  lapply(1:10, function(i) {
-    slice <- table[seq(i, nrow(table), by = 10), c(
-        "result.classif.bbrier",
-        "result.regr.rmse",
-        bycols,
-        "is.grid"
-      ), with = FALSE
-    ]
-    setnames(slice, "result.classif.bbrier", "bbrier")
-    setnames(slice, "result.regr.rmse", "rmse")
-    slice
-  })
-}
+
 
 tglmnet[, is.grid := seq_len(.N) > nrow(.SD) / 2, by = taskname]
 reduced.glmnet <- reduceTables(tglmnet, "glmnet")
-sliced.glmnet <- sliceTables(tglmnet, "glmnet")
-
 
 ttree[, is.grid := seq_len(.N) > nrow(.SD) / 2, by = taskname]
 reduced.tree <- reduceTables(ttree, "tree", params = c("cp", "minbucket", "minsplit"))
-sliced.tree <- sliceTables(ttree, "tree", params = c("cp", "minbucket", "minsplit"))
 
 txgb[, is.grid := FALSE]
 reduced.xgb <- reduceTables(txgb, "xgb")
-sliced.xgb <- sliceTables(txgb, "xgb")
 
 tsvm[, is.grid := FALSE]
 tsvm[tsvm[, .N, by = "svm.cost"][N > 100], is.grid := TRUE, on = "svm.cost"]
 
 reduced.svm <- reduceTables(tsvm, "svm")
-sliced.svm <- sliceTables(tsvm, "svm")
 
 tnnet[, is.grid := FALSE]
 tnnet[tnnet[, .N, by = "nnet.decay"][N > 100], is.grid := TRUE, on = "nnet.decay"]
 reduced.nnet <- reduceTables(tnnet, "nnet")
-sliced.nnet <- sliceTables(tnnet, "nnet")
 
 reduced.tree[is.grid == TRUE, table(config.cp) |> length()]
 reduced.tree[is.grid == FALSE, table(config.cp) |> length()]

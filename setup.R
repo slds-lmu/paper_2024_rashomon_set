@@ -5,7 +5,18 @@ stop("This file should be run manually")
 
 ## If renv is already present:
 renv::restore()
+
+# restart R session
+reticulate::virtualenv_create("rashomon")
+
+renv::use_python(reticulate::virtualenv_python("rashomon"))
+# restart R
+
+renv::restore()  # should install python packages
+
 # and restart R
+
+#################
 
 ## The following is only necessary if no renv.lock is present
 renv::init(bare = TRUE)
@@ -24,7 +35,17 @@ renv::install(c(
   "mlr3data",
   "glmnet",
   "snow",  # batchtools socket parallelization
-  "ggplot2"
+  "ggplot2",
+  "reticulate",
+  "jsonlite"
 ))
+
+reticulate::virtualenv_create("rashomon")
+
+renv::use_python(reticulate::virtualenv_python("rashomon"))
+
+reticulate::py_install("scikit-learn<1.6")
+reticulate::py_install("treefarms")
+reticulate::py_install("gosdt")
 
 renv::snapshot()
