@@ -100,7 +100,7 @@ optimizer.scenarios <- c(
   "optimize",  # bayesian optimization
   "lse.opt",  # bayesian opt to estimate threshold, followed by lse
   "truvar.opt",  # bayesian opt to estimate threshold, followed by truvar
-  "maxsd.opt",  # bayesian opt to estimate threshold, followed by maxsd
+  "maxsd.opt",  # bayesian oprst to estimate threshold, followed by maxsd
   "random.opt"
 )
 

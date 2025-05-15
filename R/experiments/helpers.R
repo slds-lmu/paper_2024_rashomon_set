@@ -103,7 +103,7 @@ RashomonTracker <- R6Class("RashomonTracker",
     rashomon.is.relative = NULL,
     true.optimum = NULL,
     last.step.points = 0,
-    initialize = function(stream, optimizer, pointslimit) {
+    initialize = function(stream, optimizer, pointslimit, filename) {
       assertClass(stream, "ObjectiveStream")
       assertClass(optimizer, "RashomonSampler")
 
@@ -126,7 +126,7 @@ RashomonTracker <- R6Class("RashomonTracker",
       truedata[, .lower := NA_real_]
       self$truedata <- truedata
 
-      resetTabulate()
+      resetTabulate(filename)
     },
     recordYAsked = function(y.asked, lastmodel, metainfo) {
       if (self$already.evaluated != 0) {
