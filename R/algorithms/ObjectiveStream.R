@@ -89,7 +89,15 @@ ObjectiveStream <- R6Class("ObjectiveStream",
     #' @field domain (`ParamSet`) The domain of the objective function.
     domain = function() private$.domain,
     #' @field minimize (`logical(1)`) Whether the objective function should be minimized.
-    minimize = function() private$.minimize
+    minimize = function() private$.minimize,
+    #' @field nrow (`integer(1)`) The number of samples that can be queried in total.
+    nrow = function() {
+      Inf
+    },
+    #' @field remaining.rows (`integer(1)`) The number of remaining samples that can still be queried.
+    remaining.rows = function() {
+      Inf
+    }
   ),
   private = list(
     .id = NULL,
@@ -102,7 +110,7 @@ ObjectiveStream <- R6Class("ObjectiveStream",
       # Called by `sample()` to add an ID column to the table and record samples so that they can be retrieved by
       # their id using `$getRow()`.
       private$.table <- rbind(private$.table, table)
-      set(table, j = ".id", value = seq.int(nrow(private$.table) - nrow(table) + 1, nrow(private$.table)))
+      set(table, j = ".id", value = seq.int(nrow(private$.table) - nrow(table) + 1L, nrow(private$.table)))
       table
     },
     #' @description

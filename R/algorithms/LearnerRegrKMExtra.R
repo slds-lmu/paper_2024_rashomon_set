@@ -17,7 +17,7 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
     initialize = function() {
       self$baselearner <- LearnerRegrKM$new()
       super$initialize("regr.km.extra", packages = "DiceKriging",
-        feature_types = self$baselearner$feature_types,
+        feature_types = c("numeric", "integer", "logical", "factor"), # TODO do this more elegantly self$baselearner$feature_types,
         param_set = self$baselearner$param_set$clone(deep = TRUE),
         properties = self$baselearner$properties,
         predict_types = self$baselearner$predict_types,
@@ -79,7 +79,7 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
     #'   The confidence interval cutoff width (squared units, i.e. target scaled variance)
     #' @return [`numeric(1)`]\cr
     #'   The total scaled excess variance reduction.
-    totalScaledExcessVarianceReduction = function(new.points.task, query.task, beta, eta) {
+    totalScaledExcessVarianceReduction = function(new.points.task, query.task, beta, eta, ...) {
       assertClass(new.points.task, "TaskRegr")
       assertClass(query.task, "TaskRegr")
       assertNumber(beta)
@@ -96,7 +96,7 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
       lrn <- self$baselearner$clone(deep = TRUE)
       lrn$predict_type <- self$predict_type
       lrn$param_set$values <- self$param_set$values
-      lrn$train(task)
+      lrn$train(convertpo$train(list(task))[[1]])
       lrn$state
     },
     .predict = function(task) {
@@ -104,7 +104,7 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
       lrn$predict_type <- self$predict_type
       lrn$param_set$values <- self$param_set$values
       lrn$state <- self$model
-      prediction <- lrn$predict(task)
+      prediction <- lrn$predict(convertpo$train(list(task))[[1]])
       result <- list(response = prediction$response)
       if (self$predict_type == "se") {
         result$se <- prediction$se
@@ -113,6 +113,8 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
     }
   )
 )
+
+convertpo <- po("colapply", affect_columns = selector_invert(selector_type(c("numeric", "integer"))), applicator = as.numeric)
 
 
 posteriorVarGivenNewPoints <- function(model, Xcand, M, new.nugget) {

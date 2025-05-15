@@ -28,14 +28,25 @@ ObjectiveStreamRecorded <- R6Class("ObjectiveStreamRecorded",
       private$.table <- table
     }
   ),
+  active = list(
+    #' @field nrow (`integer(1)`) The number of recorded samples.
+    nrow = function() {
+      # TODO write test
+      nrow(private$.table)
+    },
+    #' @field remaining.rows (`integer(1)`) The number of remaining samples that can still be queried.
+    remaining.rows = function() {
+      nrow(private$.table) - private$.next.id + 1L
+    }
+  ),
   private = list(
-    .next.id = 1,  # position of next sample in `private$.table`
+    .next.id = 1L,  # position of next sample in `private$.table`
     .scorecol = NULL,
     .table = NULL,
     .augmentTable = function(table) {
       # attach ID column to the table, which are not present in `private$.table`
       private$.next.id <- private$.next.id + nrow(table)
-      set(table, j = ".id", value = seq.int(private$.next.id - nrow(table), private$.next.id - 1))
+      set(table, j = ".id", value = seq.int(private$.next.id - nrow(table), private$.next.id - 1L))
       table
     },
     .eval = function(x) {

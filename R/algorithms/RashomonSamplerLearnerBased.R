@@ -48,12 +48,17 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
         stop("learner is read-only")
       }
       private$.learner
+    },
+    #' @field lastmodel (`LearnerRegrKMExtra`) The last model used to make predictions.
+    lastmodel = function() {
+      private$.lastmodel
     }
   ),
   private = list(
     .search.grid.size = NULL,
     .search.grid = NULL,
     .learner = NULL,
+    .lastmodel = NULL,
     .askXSamples = function() {
       if (is.null(private$.search.grid)) {
         private$.search.grid.size
@@ -62,7 +67,13 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
       }
     },
     .tellXSamples = function(x) {
-      private$.search.grid <- copy(x)
+      if (is.null(private$.search.grid)) {
+        private$.search.grid <- copy(x)
+      } else {
+        # only happens if inheriting class somehow changes .askXSamples();
+        # otherwise we only ever call .tellXSamples once
+        private$.search.grid <- rbind(private$.search.grid, x)
+      }
     },
     .askYValues = function() {
       # Split into known and unknown points
@@ -87,6 +98,7 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
       # Train learner and make predictions
       learner <- private$.learner$clone(deep = TRUE)
       learner$train(task.known)
+      private$.lastmodel <- learner
 
       pred.unknown <- learner$predict(task.unknown)
 
@@ -113,8 +125,15 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
         multiplier <- -1
       }
 
-      row <- private$.askYValuesWithLearner(mean.pred, sd.pred, grid.known$.score * multiplier,
-        known.y.predicted, known.y.predicted.sd, grid.known, grid.unknown, learner)
+      row <- private$.askYValuesWithLearner(
+        mean.pred = mean.pred,
+        sd.pred = sd.pred,
+        known.y = grid.known$.score,
+        known.y.predicted = known.y.predicted,
+        known.y.predicted.sd = known.y.predicted.sd,
+        grid.known = grid.known,
+        grid.unknown = grid.unknown,
+        learner = learner)
       assertInt(row, lower = 1, upper = nrow(grid.unknown), .var.name = "row returned by .askYValuesWithLearner")
       grid.unknown[row]
     },
@@ -127,7 +146,8 @@ RashomonSamplerLearnerBased <- R6Class("RashomonSamplerLearnerBased",
       indices <- private$.getRashomonIndices(private$.search.grid[non.nas, .score])
       private$.search.grid[non.nas[indices], ]
     },
-    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, grid.unknown) {
+    .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, known.y.predicted, known.y.predicted.sd,
+        grid.known, grid.unknown, learner) {
       stop("Not implemented")
     }
   )

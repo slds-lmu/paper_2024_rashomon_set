@@ -45,3 +45,5 @@ list.tasks.binarized <- list(
   cs.bin = task.compas.binarized,
   fc.bin = task.fico.binarized
 )
+
+DEBUG <- FALSE

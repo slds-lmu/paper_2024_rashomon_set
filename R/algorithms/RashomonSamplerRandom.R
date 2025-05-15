@@ -21,9 +21,9 @@ RashomonSamplerRandom <- R6Class("RashomonSamplerRandom",
     #'   (`FALSE`)
     #' @param seed (`integer(1)`) Random seed for reproducibility
     #' @param n.rashomon.samples (`integer(1)` | `Inf`) Target number of Rashomon set samples.
+    #'   RashomonSampler implementations may optimize their behaviour to hit this target specifically.
     #' @param initial.sample.size (`integer(1)`) Number of samples to request in the initial batch
     #' @param batchsize (`integer(1)`) Number of samples to request in each subsequent batch
-    #'   RashomonSampler implementations may optimize their behaviour to hit this target specifically.
     initialize = function(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, seed,
         n.rashomon.samples, initial.sample.size = 100L, batchsize = 1L) {
       private$.initial.sample.size <- assertCount(initial.sample.size, positive = TRUE, tol = 0, coerce = TRUE)

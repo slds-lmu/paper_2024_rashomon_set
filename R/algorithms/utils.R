@@ -42,3 +42,14 @@ getNullTable <- function(domain, include.id = FALSE, include.score = FALSE) {
   }
   table
 }
+
+
+
+undebug <- function(expr) {
+  debugstate <- DEBUG
+  on.exit({
+    DEBUG <<- debugstate
+  })
+  DEBUG <<- FALSE
+  force(expr)
+}
