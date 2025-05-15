@@ -194,12 +194,15 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' Request the next batch of configurations to evaluate.
     #' @return (`integer(1)`) Number of configurations requested
     askXSamples = function() {
+      if (DEBUG) cat(sprintf("[%s] askXSamples():\n", private$.id))
       if (!is.null(private$.ask.y.buffer)) return(0L)
       if (!is.null(private$.ask.x.buffer)) {
+        if (DEBUG) cat(sprintf("[%s:askXSamples] %s (buffered)\n", private$.id, private$.ask.x.buffer))
         return(private$.ask.x.buffer)
       }
       axb <- withLocalSeed(private$.seed, private$.askXSamples())
       private$.ask.x.buffer <- assertCount(axb, tol = 0, coerce = TRUE)
+      if (DEBUG) cat(sprintf("[%s:askXSamples] %s (new)\n", private$.id, private$.ask.x.buffer))
       private$.ask.x.buffer
     },
 
@@ -221,9 +224,11 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' @return (`integer(1)`) Number of additional configurations needed
     tellXSamples = function(x, scorecol = NULL) {
       if (!is.null(private$.ask.y.buffer)) stop("Cannot tell X when Y was asked and not answered.")
+      if (DEBUG) cat(sprintf("[%s] tellXSamples(%s):\n", private$.id, nrow(x)))
       ask.x.samples <- self$askXSamples()
       assertDataFrame(x, max.rows = ask.x.samples)
       if (!nrow(x)) {
+        if (DEBUG) cat(sprintf("[%s:tellXSamples] %s (empty input)\n", private$.id, ask.x.samples))
         return(ask.x.samples)
       }
       assertString(scorecol, null.ok = TRUE)
@@ -261,7 +266,9 @@ RashomonSampler <- R6Class("RashomonSampler",
         withLocalSeed(private$.seed, private$.tellXSamples(x))
         private$.ask.x.buffer <- NULL
       }
-      self$askXSamples()
+      result <- self$askXSamples()
+      if (DEBUG) cat(sprintf("[%s:tellXSamples] %s (new)\n", private$.id, result))
+      result
     },
 
     #' @description
@@ -278,8 +285,14 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' Therefore, if the caller needs the returned `data.table` object after `tellYValues()` has been called,
     #' it must make a deep copy of it using `copy()`.
     askYValues = function() {
-      if (self$askXSamples() != 0) return(getNullTable(self$domain, include.id = TRUE))
+      if (DEBUG) cat(sprintf("[%s] askYValues():\n", private$.id))
+      stillasking <- self$askXSamples()
+      if (stillasking != 0) {
+        if (DEBUG) cat(sprintf("[%s:askYValues] (empty; still asking %s xvals)\n", private$.id, stillasking))
+        return(getNullTable(self$domain, include.id = TRUE))
+      }
       if (!is.null(private$.ask.y.buffer)) {
+        if (DEBUG) cat(sprintf("[%s:askYValues] %s (buffered)\n", private$.id, nrow(private$.ask.y.buffer)))
         return(private$.ask.y.buffer)
       }
       rdf <- withLocalSeed(private$.seed, private$.askYValues())
@@ -294,6 +307,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       private$.ask.y.id.order <- assertIntegerish(rdf$.id, tol = 0, any.missing = FALSE, unique = TRUE)
       private$.ask.y.buffer <- rdf
       private$.tell.y.buffer <- set(rdf[0], j = ".score", value = numeric(0))
+      if (DEBUG) cat(sprintf("[%s:askYValues] %s (new)\n", private$.id, nrow(rdf)))
       rdf
     },
 
@@ -313,7 +327,14 @@ RashomonSampler <- R6Class("RashomonSampler",
     #' @return (`data.table`) Additional configurations to evaluate, if any
     tellYValues = function(y, scorecol = ".score") {
       assertDataFrame(y)
-      if (!nrow(y)) return(private$.ask.y.buffer)
+      if (DEBUG) cat(sprintf("[%s] tellYValues(%s):\n", private$.id, nrow(y)))
+      if (!nrow(y)) {
+        if (DEBUG) {
+          cat(sprintf("[%s:tellYValues] still asking %s (empty input)\n",
+          private$.id, nrow(private$.ask.y.buffer)))
+        }
+        return(private$.ask.y.buffer)
+      }
       assertChoice(scorecol, colnames(y))
       assertDisjunct(scorecol, c(".id", self$domain$ids()))
       assertNames(colnames(y), must.include = ".id")
@@ -336,6 +357,7 @@ RashomonSampler <- R6Class("RashomonSampler",
       if (nrow(ayb)) {
         private$.ask.y.buffer <- ayb
         private$.tell.y.buffer <- tyb
+        if (DEBUG) cat(sprintf("[%s:tellYValues] %s (remaining)\n", private$.id, nrow(ayb)))
         return(ayb)
       }
       yido <- private$.ask.y.id.order
@@ -347,6 +369,7 @@ RashomonSampler <- R6Class("RashomonSampler",
 
       withLocalSeed(private$.seed, private$.tellYValues(tyb[J(yido), on = ".id"]))
       self$askXSamples()  # mandatory state transition
+      if (DEBUG) cat(sprintf("[%s:tellYValues] 0 (told all)\n", private$.id))
       invisible(getNullTable(self$domain, include.id = TRUE))  # stay in ASKING.Y.PRELIMINARY state if necessary
     }
   ),

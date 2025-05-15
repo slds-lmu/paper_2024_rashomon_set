@@ -3,6 +3,8 @@
 #' @description
 #' This sampler uses the LSE (Local Surrogate Estimation) method from Gotovos et al. 2013 to find the Rashomon set.
 #'
+#' TODO: this implementation is broken, use the RashomonSamplerLSEImp with implicit.threshold.method = FALSE instead
+#'
 #' @export
 RashomonSamplerLSE <- R6Class("RashomonSamplerLSE",
   inherit = RashomonSamplerLearnerBased,

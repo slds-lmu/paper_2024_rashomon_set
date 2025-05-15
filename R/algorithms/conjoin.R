@@ -56,7 +56,7 @@ conjoinSamples <- function(samples, choice.param.name = "subspace", keep.cols = 
     x <- samples[[n]]
     rename <- !colnames(x) %in% keep.cols
     colnames(x)[rename] <- paste0(n, ".", colnames(x)[rename])
-    x[[choice.param.name]] <- n
+    x[[choice.param.name]] <- if (nrow(x) == 0) character(0) else n
     x
   })
   rbindlist(samples, use.names = TRUE, fill = TRUE)

@@ -28,7 +28,7 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     #' @param chunk.size (`integer(1)` | `Inf`) Size of chunks to process at a time when calculating
     #'   scaled excess variance reduction. If `Inf`, the entire grid is processed at once.
     initialize = function(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
-        delta.bar, r, beta, eta, search.grid.size, seed, n.rashomon.samples, chunk.size = Inf) {
+        delta.bar, r, beta, eta, search.grid.size, seed, n.rashomon.samples, chunk.size = Inf, implicit.threshold.method = TRUE) {
       super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
         search.grid.size, seed, n.rashomon.samples)
       private$.delta.bar <- assertNumber(delta.bar, lower = 0, finite = TRUE)
@@ -36,13 +36,19 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
       if (r == 1) {
         stop("r must be smaller than 1")
       }
-      private$.beta <- assertNumeric(beta, min.len = 1, any.missing = FALSE, lower = 0, finite = TRUE)
+      assert(
+        checkNumeric(beta, min.len = 1, any.missing = FALSE, lower = 0, finite = TRUE),
+        checkFunction(beta)
+      )
+      private$.beta <- beta
       private$.eta <- assertNumber(eta, lower = 0, finite = TRUE)
       private$.epoch <- 1
-      private$.chunk.size <- assert(
+      assert(
         checkCount(chunk.size, positive = TRUE, tol = 0),
         checkNumber(chunk.size, lower = Inf)
       )
+      private$.chunk.size <- chunk.size
+      private$.implicit.threshold.method <- implicit.threshold.method
     }
   ),
   active = list(
@@ -59,7 +65,21 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     epoch = function() private$.epoch,
     #' @field chunk.size (`integer(1)`) Size of chunks to process at a time when calculating
     #'   scaled excess variance reduction.
-    chunk.size = function() private$.chunk.size
+    chunk.size = function() private$.chunk.size,
+    #' @field metainfo (`list`) Additional information about the sampler
+    metainfo = function() {
+      row <- seq_len(nrow(private$.search.grid))
+      cbind(
+        private$.search.grid,
+        .is.in.M = row %in% private$.M,
+        .lse.set = fcase(
+          row %in% private$.L, "L",
+          row %in% private$.H, "H",
+          row %in% private$.U, "U",
+          default = NA_character_
+        )
+      )
+    }
   ),
   private = list(
     .delta.bar = NULL,
@@ -68,6 +88,8 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     .eta = NULL,
     .epoch = NULL,
     .chunk.size = NULL,
+    .last.epoch.switch = NULL,
+    .implicit.threshold.method = NULL,
     .L = NULL,  # points in the low set
     .H = NULL,  # points in the high set
     .U = NULL,  # unclassified points
@@ -79,14 +101,25 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
         private$.L <- integer(0)
         private$.H <- integer(0)
         private$.U <- seq_len(nrow(private$.search.grid))
-        private$.M <- seq_len(nrow(private$.search.grid))
+        if (private$.implicit.threshold.method) {
+          private$.M <- seq_len(nrow(private$.search.grid))
+        } else {
+          private$.M <- integer(0)
+        }
       }
 
-      sqrt.beta.i <- if (private$.epoch <= length(private$.beta)) {
+      if (is.null(private$.last.epoch.switch)) {
+        private$.last.epoch.switch <- length(known.y)
+      }
+
+      sqrt.beta.i <- if (is.function(private$.beta)) {
+        sqrt(private$.beta(i = private$.epoch, t = private$.last.epoch.switch, D = nrow(private$.search.grid)))
+      } else if (private$.epoch <= length(private$.beta)) {
         sqrt(private$.beta[private$.epoch])
       } else {
         sqrt(private$.beta[length(private$.beta)])
       }
+      cat(sprintf("***** sqrt.beta.i: %s\n", sqrt.beta.i))
       eta.i <- private$.eta * private$.r^(private$.epoch - 1)
 
       # map index within 'grid.known' to index within 'private$.search.grid'
@@ -106,8 +139,14 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
       current.l <- mean.pred.full - interval.width
       current.u <- mean.pred.full + interval.width
 
-      f.pes <- max(current.u[private$.M])
-      f.opt <- min(current.l[private$.M])
+      if (private$.implicit.threshold.method) {
+        f.pes <- min(current.u[private$.M])
+        f.opt <- min(current.l[private$.M])
+      } else {
+        f.pes <- min(known.y)
+        f.opt <- min(known.y)
+      }
+
       if (self$rashomon.is.relative) {
         h.opt <- f.opt + abs(f.opt) * self$rashomon.epsilon
         h.pes <- f.pes + abs(f.pes) * self$rashomon.epsilon
@@ -131,12 +170,15 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
       # advance epoch as long as interval widths are within bounds
       while (length(private$.U) > 0 &&
         max(interval.width[private$.U]) <= eta.i * (1 + private$.delta.bar) &&
-        max(interval.width[private$.M]) <=
+        max(interval.width[private$.M], 0) <=
           eta.i * (1 - private$.delta.bar) * m.interval.factor
       ) {
         # advance epoch
         private$.epoch <- private$.epoch + 1
-        sqrt.beta.i <- if (private$.epoch <= length(private$.beta)) {
+        private$.last.epoch.switch <- length(known.y)
+        sqrt.beta.i <- if (is.function(private$.beta)) {
+          sqrt(private$.beta(i = private$.epoch, t = private$.last.epoch.switch, D = nrow(private$.search.grid)))
+        } else if (private$.epoch <= length(private$.beta)) {
           sqrt(private$.beta[private$.epoch])
         } else {
           sqrt(private$.beta[length(private$.beta)])
@@ -147,26 +189,31 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
         interval.width <- sqrt.beta.i * sd.pred.full
       }
 
-      task.m <- as_task_regr(private$.search.grid[private$.M, -".id", with = FALSE], target = ".score", id = "M")
-      task.u <- as_task_regr(private$.search.grid[private$.U, -".id", with = FALSE], target = ".score", id = "U")
-
-      chunks <- split(seq_len(nrow(grid.unknown)), 1 + floor((seq_len(nrow(grid.unknown)) - 1) / private$.chunk.size))
-
-      scaled.excess.variance.improvement <- numeric(nrow(grid.unknown))
-      offset.m <- sum(pmax(interval.width[private$.M]^2 - eta.i^2, 0))
-      offset.u <- sum(pmax(interval.width[private$.U]^2 - eta.i^2, 0))
-      for (chnk in chunks) {
-        tchunk <- as_task_regr(grid.unknown[chnk, -".id", with = FALSE], target = ".score", id = "unknown")
-        scaled.excess.variance.improvement[chnk] <- (
-          # excess variance improvement for maximum
-          offset.m - colSums(pmax(learner$predictConditionalSE(tchunk, task.m)^2 - eta.i^2, 0)) +
-          # excess variance improvement for threshold
-          (offset.u - colSums(pmax(learner$predictConditionalSE(tchunk, task.u)^2 - eta.i^2, 0))) / m.interval.factor
-        )
+      unclassified.unknowns <- which(pred.index.to.fullindex %in% c(private$.M, private$.U))
+      if (!length(unclassified.unknowns) || !length(private$.U)) {
+        return(1L)
       }
 
+      if (private$.implicit.threshold.method) {
+        task.m <- as_task_regr(private$.search.grid[private$.M, -".id", with = FALSE], target = ".score", id = "M")
+      }
+      task.u <- as_task_regr(private$.search.grid[private$.U, -".id", with = FALSE], target = ".score", id = "U")
 
-      which.max(scaled.excess.variance.improvement)
+      newpoints <- as_task_regr(grid.unknown[unclassified.unknowns, -".id", with = FALSE], target = ".score", id = "unknown")
+      scaled.excess.variance.improvement <- (
+        (if (private$.implicit.threshold.method) {
+          # excess variance improvement for maximum
+          learner$totalScaledExcessVarianceReduction(newpoints, task.m,
+            (sqrt.beta.i / m.interval.factor)^2, eta.i, private$.chunk.size)
+        } else {
+          0
+        }) +
+        # excess variance improvement for threshold
+        learner$totalScaledExcessVarianceReduction(newpoints, task.u,
+          sqrt.beta.i^2, eta.i, private$.chunk.size)
+      )
+
+      unclassified.unknowns[which.max(scaled.excess.variance.improvement)]
     }
   )
 )

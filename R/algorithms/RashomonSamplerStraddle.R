@@ -45,12 +45,12 @@ AqfStraddle <- function(rashomon.epsilon, rashomon.is.relative) {
   assertLogical(rashomon.is.relative)
   makeAqf(function(mean, sd, known.y, known.y.predicted) {
     # remember we are minimizing
-    threshold <- min(known.y.predicted)
+    threshold <- min(known.y.predicted, mean)
     if (rashomon.is.relative) {
       # for negative scores (when maximizing) we need abs here
-      rashomon.epsilon <- abs(min(threshold, mean)) * rashomon.epsilon
+      rashomon.epsilon <- abs(threshold) * rashomon.epsilon
     }
     threshold <- threshold + rashomon.epsilon
-    1.96 * sd - abs(mean - threshold)
+    - (1.96 * sd - abs(mean - threshold))  # we need to return a small value for favourable points
   }, sprintf("AqfStraddle(ε = %s, %s)", rashomon.epsilon, if (rashomon.is.relative) "relative" else "absolute"))
 }

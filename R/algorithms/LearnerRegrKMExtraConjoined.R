@@ -12,6 +12,15 @@ LearnerRegrKMExtraConjoined <- R6Class("LearnerRegrKMExtraConjoined",
   public = list(
     baselearner = NULL,
     disjoiner = NULL,
+    #' @description
+    #' Initialize LearnerRegrKMExtraConjoined.
+    #'
+    #' @param paramset (`ParamSet`) The search space to initialize with.
+    #' @param also.disjoin.on (`character`) Additional parameters to consider for disjoining.
+    #'   Defaults to `character(0)` (only use parameters that are depended on by others).
+    #' @param allow.int (`logical`) Whether to allow integer parameters to be disjoined on.
+    #'   Disjoining on non-factor / logical parameters is typically a mistake, so this has to be explicitly enabled.
+    #'   Defaults to `FALSE`.
     initialize = function(param.set, also.disjoin.on = character(0), allow.int = FALSE) {
       self$baselearner <- LearnerRegrKMExtra$new()
       self$disjoiner <- SpaceDisjoiner$new(param.set, also.disjoin.on, allow.int)
@@ -93,7 +102,8 @@ LearnerRegrKMExtraConjoined <- R6Class("LearnerRegrKMExtraConjoined",
     #'   This is for debugging only and should always be `TRUE`.
     #' @return [`numeric(1)`]\cr
     #'   The total scaled excess variance reduction.
-    totalScaledExcessVarianceReduction = function(new.points.task, query.task, beta, eta, chunk.size = Inf, use.subgrids = TRUE) {
+    totalScaledExcessVarianceReduction = function(new.points.task, query.task, beta, eta, chunk.size = Inf,
+        use.subgrids = TRUE) {
       # we make use of the fact that the total scaled excess var reduction is 0 whenever a new point is
       # on a different subspace than a given query point.
       # We thus don't need to construct the entire new.points x query.points matrix, only the
@@ -131,12 +141,12 @@ LearnerRegrKMExtraConjoined <- R6Class("LearnerRegrKMExtraConjoined",
       common.pars <- intersect(names(querytables), names(newpointtables))
       for (par in common.pars) {
         model <- self$model[[par]]$model$model
-        newpoints <- as.matrix(newpointtables[[par]][, -"..row_id", with = FALSE])
+        newpoints <- as.matrix(newpointtables[[par]][, -"..row_id", with = FALSE][, lapply(.SD, as.numeric)])
         chunks <- split(seq_len(nrow(newpoints)), 1 + floor((seq_len(nrow(newpoints)) - 1) / chunk.size))
         if (is.logical(newpoints)) {
           storage.mode(newpoints) <- "numeric"
         }
-        querypoints <- as.matrix(querytables[[par]][, -"..row_id", with = FALSE])
+        querypoints <- as.matrix(querytables[[par]][, -"..row_id", with = FALSE][, lapply(.SD, as.numeric)])
         if (is.logical(querypoints)) {
           storage.mode(querypoints) <- "numeric"
         }

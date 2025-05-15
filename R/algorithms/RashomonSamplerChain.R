@@ -236,6 +236,7 @@ RashomonSamplerChain <- R6Class("RashomonSamplerChain",
     .switchToNextSampler = function() {
       while (private$.known.y.count >= private$.ask.y.each[[private$.sampler.index]]) {
         private$.sampler.index <- private$.sampler.index + 1L
+        if (DEBUG) cat(sprintf("[%s] incremented sampler index to %s\n", private$.id, private$.sampler.index))
       }
       private$.table.cache <- private$.table.cache[order(is.na(.score))]  # put rows with known scores first
       private$.cache.index <- 0L
