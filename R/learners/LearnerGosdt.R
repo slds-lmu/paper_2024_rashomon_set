@@ -16,7 +16,8 @@
 #'   which can lead to very long runtimes. Set to `TRUE` to override this check.
 #' * `verbose`: Controls the level of detail printed by the GOSDT algorithm during training.
 #'
-#' The learner currently expects binary features (encoded as 0/1 numeric or logical) and a two-class factor target variable.
+#' The learner currently expects binary features (encoded as 0/1 numeric or logical) and a two-class factor target
+#' variable.
 #'
 #' @export
 LearnerClassifGosdt <- R6::R6Class("LearnerClassifGosdt",
