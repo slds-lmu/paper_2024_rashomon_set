@@ -13,7 +13,7 @@ library(xtable)
 
 
 ## General settings ############################################################
-load("data/design.RData")
+load("data/design_all_but_TreeFARMS.RData")
 
 ## merge vics
 # final_vic = list()
@@ -34,31 +34,44 @@ load("data/design.RData")
 
 ##
 
-load("data/results_vic.RData")
+# load("data/results_vic.RData")
+load("data/results_vic_all_but_TreeFARMS.RData")
 
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
-learner.keys = c("tree", "glmnet", "xgb", "nnet", "svm")
-
+# learner.keys = c("tree", "glmnet", "xgb", "nnet", "svm")
+learner.keys = unique(pre_design$learnername)
 
 
 # read in AutoML information on models
-run_models = readRDS("data/run_models_merged.rds")
+# run_models = readRDS("data/run_models_merged.rds")
+run_models = readRDS("/media/external/rashomon/datafiles/model_info/run_models.rds")
+
 # save performance for considered models
 performance = list()
-kernel = list()
 for(task.key in task.keys){
   performance[[task.key]] = list()
-  kernel[[task.key]] = c()
   for(learner.key in learner.keys){
-    dt = run_models$torun.samples[[learner.key]]
+    dt = run_models$torun.rashomon.learnerwise.1k[[learner.key]]
     performance[[task.key]][[learner.key]] = dt[taskname == task.key]$score
-    if(learner.key == "svm"){
-      kernel[[task.key]] = c(kernel[[task.key]],paste0("svm_",dt[taskname == task.key]$svm.kernel))
-    }
   }
 }
-# svm per task
-svm_per_task = pre_design[pre_design$learnername == "svm",c("rn", "count")]
+
+# OLD
+# performance = list()
+# kernel = list()
+# for(task.key in task.keys){
+#   performance[[task.key]] = list()
+#   kernel[[task.key]] = c()
+#   for(learner.key in learner.keys){
+#     dt = run_models$torun.samples[[learner.key]]
+#     performance[[task.key]][[learner.key]] = dt[taskname == task.key]$score
+#     if(learner.key == "svm"){
+#       kernel[[task.key]] = c(kernel[[task.key]],paste0("svm_",dt[taskname == task.key]$svm.kernel))
+#     }
+#   }
+# }
+# # svm per task
+# svm_per_task = pre_design[pre_design$learnername == "svm",c("rn", "count")]
 
 # create model-agnostic Rashomon set
 best_performance = apply(sapply(performance, sapply, min),2,min)
@@ -96,62 +109,68 @@ for(task.key in task.keys){
 rm(vic_names, vic_learner, cum_sum_learner, index)
 model_index_RS = lapply(perf_index_RS, function(x) x[-1]-1)
 
-save(vic_RS, vic_normalized_RS, file = paste0("data/results_vic_RS_", paste0(unique(design$rn), collapse = "_"), ".RData"))
+save(vic_RS, vic_normalized_RS, file = "data/results_vic_RS_all_but_TreeFARMS.RData")
 
 # For st, we can easily calculate the "true PFI values"
-if("st" %in% task.keys){
-  dgp = function(x) x[4]+x[5]+x[4]*x[5]
-  task = list.tasks[["st"]]
-  task_train = generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$train
-  task_test = generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$validation
-  # learner / model
-  # generate custom learner
-  LearnerCustom <- R6::R6Class(
-    "LearnerCustom",
-    inherit = LearnerRegr, # Für Regression
-    public = list(
-      initialize = function() {
-        # Initialisierung des Learners
-        super$initialize(
-          id = "regr.custom",               # ID des Learners
-          feature_types = c("numeric"),    # Typ der Features
-          predict_types = c("response")    # Vorhersagetypen
-        )
-      }
-    ),
-    private = list(
-      .train = function(task) {
-        # Speichere die Funktion als Modell
-        self$model <- function(x) {
-          x[[4]] + x[[5]] + x[[4]] * x[[5]]
-        }
-      },
-      .predict = function(task) {
-        # Daten extrahieren
-        newdata <- task$data(cols = task$feature_names)
-        # Berechnung: x[4] + x[5] + x[4] * x[5]
-        response <- newdata[[4]] + newdata[[5]] + newdata[[4]] * newdata[[5]]
-        # Rückgabe der Vorhersage
-        list(response = response)
-      }
-    )
-  )
-  mlr_learners$add("regr.custom", LearnerCustom)
-  learner = lrn("regr.custom")
-  learner$train(task_train)
+# if("st" %in% task.keys){
+#   dgp = function(x) x[4]+x[5]+x[4]*x[5]
+#   task = list.tasks[["st"]]
+#   task_train = generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$train
+#   task_test = generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$validation
+#   # learner / model
+#   # generate custom learner
+#   LearnerCustom <- R6::R6Class(
+#     "LearnerCustom",
+#     inherit = LearnerRegr, # Für Regression
+#     public = list(
+#       initialize = function() {
+#         # Initialisierung des Learners
+#         super$initialize(
+#           id = "regr.custom",               # ID des Learners
+#           feature_types = c("numeric"),    # Typ der Features
+#           predict_types = c("response")    # Vorhersagetypen
+#         )
+#       }
+#     ),
+#     private = list(
+#       .train = function(task) {
+#         # Speichere die Funktion als Modell
+#         self$model <- function(x) {
+#           x[[4]] + x[[5]] + x[[4]] * x[[5]]
+#         }
+#       },
+#       .predict = function(task) {
+#         # Daten extrahieren
+#         newdata <- task$data(cols = task$feature_names)
+#         # Berechnung: x[4] + x[5] + x[4] * x[5]
+#         response <- newdata[[4]] + newdata[[5]] + newdata[[4]] * newdata[[5]]
+#         # Rückgabe der Vorhersage
+#         list(response = response)
+#       }
+#     )
+#   )
+#   mlr_learners$add("regr.custom", LearnerCustom)
+#   learner = lrn("regr.custom")
+#   learner$train(task_train)
+# 
+#   # Calculate PFI
+#   set.seed(1)
+#   X = task_test$data(cols = task_test$feature_names)
+#   y = task_test$data(cols = task_test$target_names)
+#   predictor = Predictor$new(model = learner, data = X, y = y)
+#   # PFI via ratio (default). Alternative: compare = "difference"
+#   true_pfi = subset(FeatureImp$new(predictor, loss = "rmse", compare = "difference",
+#                                    n.repetitions = 10)$results,
+#                     select = c(feature, importance))
+#   true_pfi_scaled = true_pfi
+#   true_pfi_scaled$importance = true_pfi$importance/max(true_pfi$importance)
+# }
 
-  # Calculate PFI
-  set.seed(1)
-  X = task_test$data(cols = task_test$feature_names)
-  y = task_test$data(cols = task_test$target_names)
-  predictor = Predictor$new(model = learner, data = X, y = y)
-  # PFI via ratio (default). Alternative: compare = "difference"
-  true_pfi = subset(FeatureImp$new(predictor, loss = "rmse", compare = "difference",
-                                   n.repetitions = 10)$results,
-                    select = c(feature, importance))
-  true_pfi_scaled = true_pfi
-  true_pfi_scaled$importance = true_pfi$importance/max(true_pfi$importance)
-}
+
+## for TreeFARMS
+# load("data/results_vic_TreeFARMS.RData")
+# vic_RS = vic 
+# vic_normalized_RS = vic_normalized
 
 ## Create plots
 # Function needed for plots
@@ -177,8 +196,8 @@ for(task.key in task.keys){
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_long[[task.key]]$PFI)
   model_no = as.numeric(sub(".*_.*_m(.?)", "\\1", colnames(vic[[task.key]])[-1]))
-  vic_long[[task.key]]$learner[vic_long[[task.key]]$learner == "svm"] =
-    rep(kernel[[task.key]], times = length(vic[[task.key]]$feature))
+  # vic_long[[task.key]]$learner[vic_long[[task.key]]$learner == "svm"] =
+    # rep(kernel[[task.key]], times = length(vic[[task.key]]$feature))
   vic_long[[task.key]]$performance = rep(unlist(performance[[task.key]])[model_no], #[perf_index_RS[[task.key]]-1],
                                          times = length(vic[[task.key]]$feature))
   vic_long[[task.key]] = vic_long[[task.key]] %>%
@@ -186,6 +205,7 @@ for(task.key in task.keys){
   vic_wide[[task.key]] = vic_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
 
+  # Plot 1: Scatter-plot using jitter colored acc. to performance (which we do not have due to TreeFARMS wrapper)
   if(task.key != "st"){
     plot1 = ggplot() +
       geom_quasirandom(data = vic_long[[task.key]], aes(x = Value, y = feature,
@@ -202,8 +222,8 @@ for(task.key in task.keys){
       geom_quasirandom(data = vic_long[[task.key]], aes(x = Value, y = feature,
                                                         color = performance, alpha = alpha_value),
                        cex = 1, shape = 16, stroke = 0) +
-      geom_point(data = true_pfi, aes(x = importance, y = feature,
-                                      alpha = 1), cex = 3) +
+      # geom_point(data = true_pfi, aes(x = importance, y = feature,
+                                      # alpha = 1), cex = 3) +
       scale_color_gradient(low = "blue", high = "red") +
       scale_alpha_identity() +
       labs(x = "Importance", y = "Feature", color = "Performance",
@@ -236,18 +256,19 @@ for(task.key in task.keys){
   vic_RS_long[[task.key]] = vic_RS[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_RS_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_RS_long[[task.key]]$PFI)
-  tmp = vic_long[[task.key]]$PFI[startsWith(vic_long[[task.key]]$learner, "svm")] %in% vic_RS_long[[task.key]]$PFI[vic_RS_long[[task.key]]$learner == "svm"]
-  tmp = tmp[1:(length(tmp)/length(vic[[task.key]]$feature))]
-  if(sum(tmp) > 0){
-    vic_RS_long[[task.key]]$learner[vic_RS_long[[task.key]]$learner == "svm"] =
-      rep(kernel[[task.key]][tmp], times = length(vic[[task.key]]$feature))
-  }
+  # tmp = vic_long[[task.key]]$PFI[startsWith(vic_long[[task.key]]$learner, "svm")] %in% vic_RS_long[[task.key]]$PFI[vic_RS_long[[task.key]]$learner == "svm"]
+  # tmp = tmp[1:(length(tmp)/length(vic[[task.key]]$feature))]
+  # if(sum(tmp) > 0){
+  #   vic_RS_long[[task.key]]$learner[vic_RS_long[[task.key]]$learner == "svm"] =
+  #     rep(kernel[[task.key]][tmp], times = length(vic[[task.key]]$feature))
+  # }
   vic_RS_long[[task.key]]$performance = rep(unlist(performance[[task.key]])[perf_index_RS[[task.key]]-1],
                                          times = length(vic_RS[[task.key]]$feature))
   vic_RS_wide[[task.key]] = vic_RS_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
 
-  if(task.key != "st"){
+  # Plot 1: Scatter-plot using jitter colored acc. to performance (see above)
+  # if(task.key != "st"){
     plot1 = ggplot() +
       geom_quasirandom(data = vic_RS_long[[task.key]], aes(x = Value, y = feature,
                                                         color = performance, alpha = alpha_value),
@@ -257,20 +278,20 @@ for(task.key in task.keys){
            title = paste0("PFI values (", task.key, ") colored by performance")) +
       theme_minimal(base_size = 15)+
       theme(legend.text = element_text(size=13))
-  } else {
-    plot1 = ggplot() +
-      geom_quasirandom(data = vic_RS_long[[task.key]], aes(x = Value, y = feature,
-                                                        color = performance, alpha = alpha_value),
-                       cex = 1, shape = 16, stroke = 0) +
-      geom_point(data = true_pfi, aes(x = importance, y = feature,
-                                      alpha = 1), cex = 3) +
-      scale_color_gradient(low = "blue", high = "red") +
-      scale_alpha_identity() +
-      labs(x = "Importance", y = "Feature", color = "Performance",
-           title = paste0("PFI values (", task.key, ") colored by performance")) +
-      theme_minimal(base_size = 15) +
-      theme(legend.text = element_text(size=13))
-  }
+  # } else {
+  #   plot1 = ggplot() +
+  #     geom_quasirandom(data = vic_RS_long[[task.key]], aes(x = Value, y = feature,
+  #                                                       color = performance, alpha = alpha_value),
+  #                      cex = 1, shape = 16, stroke = 0) +
+  #     geom_point(data = true_pfi, aes(x = importance, y = feature,
+  #                                     alpha = 1), cex = 3) +
+  #     scale_color_gradient(low = "blue", high = "red") +
+  #     scale_alpha_identity() +
+  #     labs(x = "Importance", y = "Feature", color = "Performance",
+  #          title = paste0("PFI values (", task.key, ") colored by performance")) +
+  #     theme_minimal(base_size = 15) +
+  #     theme(legend.text = element_text(size=13))
+  # }
 
 
   # Plot 2: Scatter-plot using jitter colored acc. to model class
@@ -357,8 +378,8 @@ for(task.key in task.keys){
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_scaled_long[[task.key]]$PFI)
   model_no = as.numeric(sub(".*_.*_m(.?)", "\\1", colnames(vic_normalized[[task.key]])[-1]))
-  vic_scaled_long[[task.key]]$learner[vic_scaled_long[[task.key]]$learner == "svm"] =
-    rep(kernel[[task.key]], times = length(vic_normalized[[task.key]]$feature))
+  # vic_scaled_long[[task.key]]$learner[vic_scaled_long[[task.key]]$learner == "svm"] =
+  #   rep(kernel[[task.key]], times = length(vic_normalized[[task.key]]$feature))
   vic_scaled_long[[task.key]]$performance = rep(unlist(performance[[task.key]])[model_no],
                                                 times = length(vic_normalized[[task.key]]$feature))
   vic_scaled_long[[task.key]] = vic_scaled_long[[task.key]] %>%
@@ -366,7 +387,7 @@ for(task.key in task.keys){
 
 
   # Plot 1: Scatter-plot using jitter colored acc. to performance
-  if(task.key != "st"){
+  # if(task.key != "st"){
     plot1 = ggplot(vic_scaled_long[[task.key]], aes(x = Value, y = feature,
                                                     color = performance,
                                                     alpha = alpha_value)) +
@@ -377,21 +398,21 @@ for(task.key in task.keys){
            title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
       theme_minimal(base_size = 15)  +
       theme(legend.text = element_text(size=13))
-  } else {
-    plot1 = ggplot() +
-      geom_quasirandom(data = vic_scaled_long[[task.key]],
-                       aes(x = Value, y = feature, color = performance,
-                           alpha = alpha_value),
-                       cex = 1, shape = 16, stroke = 0) +
-      geom_point(data = true_pfi_scaled, aes(x = importance, y = feature,
-                                             alpha = 1), cex = 3) +
-      scale_color_gradient(low = "blue", high = "red") +
-      scale_alpha_identity() +
-      labs(x = "Importance", y = "Feature", color = "Performance",
-           title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
-      theme_minimal(base_size = 15) +
-      theme(legend.text = element_text(size=13))
-  }
+  # } else {
+  #   plot1 = ggplot() +
+  #     geom_quasirandom(data = vic_scaled_long[[task.key]],
+  #                      aes(x = Value, y = feature, color = performance,
+  #                          alpha = alpha_value),
+  #                      cex = 1, shape = 16, stroke = 0) +
+  #     geom_point(data = true_pfi_scaled, aes(x = importance, y = feature,
+  #                                            alpha = 1), cex = 3) +
+  #     scale_color_gradient(low = "blue", high = "red") +
+  #     scale_alpha_identity() +
+  #     labs(x = "Importance", y = "Feature", color = "Performance",
+  #          title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
+  #     theme_minimal(base_size = 15) +
+  #     theme(legend.text = element_text(size=13))
+  # }
 
 
   # Plot 2: Scatter-plot using jitter colored acc. to model class
@@ -417,19 +438,19 @@ for(task.key in task.keys){
   vic_RS_scaled_long[[task.key]] = vic_normalized_RS[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_RS_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_RS_scaled_long[[task.key]]$PFI)
-  tmp = vic_scaled_long[[task.key]]$PFI[startsWith(vic_long[[task.key]]$learner, "svm")] %in% vic_RS_long[[task.key]]$PFI[startsWith(vic_RS_long[[task.key]]$learner, "svm")]
-  tmp = tmp[1:(length(tmp)/length(vic[[task.key]]$feature))]
-  if(sum(tmp) > 0){
-    vic_RS_scaled_long[[task.key]]$learner[vic_RS_scaled_long[[task.key]]$learner == "svm"] =
-      rep(kernel[[task.key]][tmp], times = length(vic[[task.key]]$feature))
-  }
+  # tmp = vic_scaled_long[[task.key]]$PFI[startsWith(vic_long[[task.key]]$learner, "svm")] %in% vic_RS_long[[task.key]]$PFI[startsWith(vic_RS_long[[task.key]]$learner, "svm")]
+  # tmp = tmp[1:(length(tmp)/length(vic[[task.key]]$feature))]
+  # if(sum(tmp) > 0){
+  #   vic_RS_scaled_long[[task.key]]$learner[vic_RS_scaled_long[[task.key]]$learner == "svm"] =
+  #     rep(kernel[[task.key]][tmp], times = length(vic[[task.key]]$feature))
+  # }
   vic_RS_scaled_long[[task.key]]$performance = rep(unlist(performance[[task.key]])[perf_index_RS[[task.key]]-1],
                                                 times = length(vic_normalized_RS[[task.key]]$feature))
   vic_RS_scaled_wide[[task.key]] = vic_RS_scaled_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
 
   # Plot 1: Scatter-plot using jitter colored acc. to performance
-  if(task.key != "st"){
+  # if(task.key != "st"){
     plot1 = ggplot(vic_RS_scaled_long[[task.key]], aes(x = Value, y = feature,
                                                     color = performance,
                                                     alpha = alpha_value)) +
@@ -440,21 +461,21 @@ for(task.key in task.keys){
            title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
       theme_minimal(base_size = 15) +
       theme(legend.text = element_text(size=13))
-  } else {
-    plot1 = ggplot() +
-      geom_quasirandom(data = vic_RS_scaled_long[[task.key]],
-                       aes(x = Value, y = feature, color = performance,
-                           alpha = alpha_value),
-                       cex = 1, shape = 16, stroke = 0) +
-      geom_point(data = true_pfi_scaled, aes(x = importance, y = feature,
-                                             alpha = 1), cex = 3) +
-      scale_color_gradient(low = "blue", high = "red") +
-      scale_alpha_identity() +
-      labs(x = "Importance", y = "Feature", color = "Performance",
-           title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
-      theme_minimal(base_size = 15) +
-      theme(legend.text = element_text(size=13))
-  }
+  # } else {
+  #   plot1 = ggplot() +
+  #     geom_quasirandom(data = vic_RS_scaled_long[[task.key]],
+  #                      aes(x = Value, y = feature, color = performance,
+  #                          alpha = alpha_value),
+  #                      cex = 1, shape = 16, stroke = 0) +
+  #     geom_point(data = true_pfi_scaled, aes(x = importance, y = feature,
+  #                                            alpha = 1), cex = 3) +
+  #     scale_color_gradient(low = "blue", high = "red") +
+  #     scale_alpha_identity() +
+  #     labs(x = "Importance", y = "Feature", color = "Performance",
+  #          title = paste0("PFI values (", task.key, ", max importance = 1) colored by performance")) +
+  #     theme_minimal(base_size = 15) +
+  #     theme(legend.text = element_text(size=13))
+  # }
 
 
   # Plot 2: Scatter-plot using jitter colored acc. to model class
@@ -489,33 +510,33 @@ for(task.key in task.keys){
 # save plots
 for(task.key in task.keys){
   # scatter performance
-  name = paste0("figures/", task.key, "_pfi_scatter_performance.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_performance.png")
   ggsave(name, plots[[task.key]][["performance_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_scatter_performance_scaled.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_performance_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["performance_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_RS_scatter_performance.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_performance.png")
   ggsave(name, plots[[task.key]][["RS_performance_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_RS_scatter_performance_scaled.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_performance_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_performance_scatter_plot"]], width = 10, height = 5)
   # scatter learner
-  name = paste0("figures/", task.key, "_pfi_scatter_learner.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_learner.png")
   ggsave(name, plots[[task.key]][["scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_scatter_learner_scaled.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_RS_scatter_learner.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner.png")
   ggsave(name, plots[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_RS_scatter_learner_scaled.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
   # boxplot
-  name = paste0("figures/", task.key, "_pfi_RS_boxPlot.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot.png")
   ggsave(name, plots[[task.key]][["RS_box_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_RS_boxPlot_scaled.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_box_plot"]], width = 10, height = 5)
   # pairwise
-  name = paste0("figures/", task.key, "_pfi_RS_pairwise.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_pairwise.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison"]], width = 12.5, height = 6.25)
   # pairwise Top 4
-  name = paste0("figures/", task.key, "_pfi_RS_pairwise_top4.png")
+  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_pairwise_top4.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison_top4_features"]],
          width = 12.5, height = 6.25)
   print(paste(task.key, "done"))
@@ -524,8 +545,8 @@ for(task.key in task.keys){
 
 # overview of model classes per task (number of models)
 RS_models_count =lapply(vic_RS_long, function (x) table(x$learner)/length(unique(x$feature)))
-model_names <- c("glmnet", "nnet", "svm_linear", "svm_polynomial", "svm_radial", "tree", "xgb")
-category_names <- c("st", "cs", "bs", "gc")
+model_names <- unique(pre_design$learnername)
+category_names <- names(vic)
 df <- data.frame(matrix(0, nrow = length(category_names), ncol = length(model_names)))
 colnames(df) <- model_names
 rownames(df) <- category_names
@@ -536,7 +557,7 @@ for (cat in names(RS_models_count)) {
 }
 df
 # LaTeX-Code
-print(xtable(df, caption = "Übersicht der Modelle"), include.rownames = TRUE)
+print(xtable(df, caption = "Übersicht der Modelle", digits = 0), include.rownames = TRUE)
 
 
 #### Correlation analysis st data ####

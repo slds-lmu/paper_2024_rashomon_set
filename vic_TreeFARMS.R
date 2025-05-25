@@ -1,24 +1,26 @@
+# source("prepare_tasks.R")
 source("init.R")
 
 library(batchtools)
 library(ggplot2)
 library(tidyr)
 library(data.table)
+library(iml)
 
 
 # writeable = TRUE only once !!!!
-# regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/CASHomon_PFIs",
+# regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/TreeFARMS",
 #                               source = "init.R", packages = "iml"
 # )
-regr = loadRegistry("/media/external/ewaldf/CASHomon_PFIs", writeable = TRUE)
+regr = loadRegistry("/media/external/ewaldf/TreeFARMS", writeable = TRUE)
 
 # Define Cluster-Configurations
-regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 5)
+regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 12)
 
 # Define Problem
 addProblem("fromlist", fun = function(data, job, taskname) {
   task = list.tasks[[taskname]]
-
+  
   # Fix logical features (for FeatureImp)
   if(taskname == "bs"){
     task_data = as.data.frame(task$data())
@@ -29,19 +31,18 @@ addProblem("fromlist", fun = function(data, job, taskname) {
     }
     task = as_task_regr(task_data, target = task_target, id = task_id)
   }
-
+  
   # Return of the validation split
   generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$validation
 })
 
 # Define Algorithm for VIC calculation based on PFI
-addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnername, model.no) {
+addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnername, model.id, RS) {
   # browser()
-  options(future.globals.maxSize= 20e8)
-  name = sprintf("/media/external/rashomon/datafiles/%s/%s/samplemodel_%s_%s_%04d.rds",
-                 job$pars$prob.pars$taskname, learnername, learnername, job$pars$prob.pars$taskname, model.no)
-  model = readRDS(name)
-
+  model <- readRDS(sprintf("/media/external/rashomon/datafiles/treefarms/treefarms_%s.rds", RS))
+  try(model$modelcontainer)
+  model$param_set$values$selected_tree <- model.id
+  
   # Fix models in case of task bs (logical features)
   if(job$pars$prob.pars$taskname == "bs"){
     # fix model
@@ -57,7 +58,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
     model = lr
     rm(gr, lr, xstate, holiday.special)
   }
-
+  
   # Function calculating PFI
   calculate_pfi = function(task, model, seed, perm.reps){
     set.seed(seed)
@@ -82,31 +83,32 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
       stop("Unsupported task type")
     }
   }
-
+  
   # Calculate VIC
   calculate_pfi(task = instance, model = model, seed = 1, perm.reps = 10)
 })
 
-# Information about models
-run_models = readRDS("/media/external/rashomon/datafiles/model_info/run_models.rds")
-run_models_no = transpose(rbindlist(lapply(run_models$torun.rashomon.learnerwise.1k, 
-                                           function(x) as.data.frame(as.list(table(x$taskname)), 
-                                                                     stringAsFactors = F)), 
-                                    fill = TRUE, idcol = "rn"), 
-                          make.names = "rn", keep.names = "rn")
-run_models_no[is.na(run_models_no)] <- 0
 
-# change the following 2 lines
-pre_design = data.table(pivot_longer(run_models_no, !rn, 
-                                     names_to = "learnername", 
-                                     values_to = "count"))
-design = pre_design[rn %in% c("cs.bin", "bc", "mk", "cr", "fc.bin", "bs", "cs", "gc", "st"), .(rn = rep(rn, each = count),
-                        learnername = rep(learnername, each = count),
-                        model.no = sequence(count)), by = .(rn, learnername)]
-design = design[,-(1:2)]
-rm(run_models, run_models_no)
-save(pre_design, design, file = paste0("data/design_all_but_TreeFARMS.RData"))
-# save(pre_design, design, file = paste0("data/design_", design$rn[1], ".RData"))
+# Create benchmark design by sampling models from TreeFARMS
+set.seed(12)
+
+treefarms.info <- fread("/media/external/rashomon/datafiles/treefarms/treefarms_info.csv")
+model.ids <- treefarms.info[offset == 0.05 & balance == FALSE & successful == TRUE & use.adder == FALSE, job.id]
+
+design <- data.table(rn=character(), learnername=character(), 
+                     model.id=character(), RS = integer())
+for(model.id in model.ids){
+  model <- readRDS(sprintf("/media/external/rashomon/datafiles/treefarms/treefarms_%s.rds", model.id))
+  try(model$modelcontainer)
+  model.nos <- replicate(1200, model$sampleTreeIndex())
+  design_tmp <- data.table(rn = treefarms.info[job.id == model.id, taskname], 
+                           learnername = "TreeFARMS", 
+                           model.id = model.nos,
+                           RS = model.id)
+  design <- rbind(design, design_tmp)
+}
+
+
 
 addExperiments(
   prob.designs = list(fromlist = data.table(taskname = design$rn)),
@@ -114,6 +116,8 @@ addExperiments(
   repls = 1,
   combine = "bind"
 )
+
+
 
 testJob(1)
 
@@ -125,12 +129,11 @@ waitForJobs()
 
 #### Extract results ###########################################################
 # writeable = TRUE only once !!!!
-regr = batchtools::loadRegistry("/media/external/ewaldf/CASHomon_PFIs", writeable = TRUE)
+regr = batchtools::loadRegistry("/media/external/XXX/bs_nnet_svm", writeable = TRUE)
 # setDefaultRegistry(regr)
 
-pre_design = pre_design[count != 0,,]
 ## save results per data set and learner
-save_results = function(ids, learnername){
+save_results = function(job_table, ids, learnername){
   list.pfi_tmp = list()
   # save median importance and feature from batchtools results
   list.pfi_tmp[[learnername]] = reduceResultsList(ids = ids, reg = regr, fun = function(x) {
@@ -141,11 +144,11 @@ save_results = function(ids, learnername){
   vic_tmp = data.frame(feature = list.pfi_tmp[[learnername]][[1]]$feature)
   for(j in 1:length(ids)){
     vic_tmp = merge(vic_tmp,
-                list.pfi_tmp[[learnername]][[j]][,c("feature","importance")],
-                by = "feature")
+                    list.pfi_tmp[[learnername]][[j]][,c("feature","importance")],
+                    by = "feature")
     colnames(vic_tmp)[j+1] = paste0("pfi_", learnername, "_m", ids[j])
   }
-
+  
   res.list = list()
   res.list$list.pfi = list.pfi_tmp
   res.list$vic = vic_tmp
@@ -153,51 +156,44 @@ save_results = function(ids, learnername){
 }
 
 job_table = getJobTable()
-# list.pfi = list()
+list.pfi = list()
 vic = list()
-# names(list.pfi)
 
-# for(i in 1:length(pre_design$count)){
-for(i in 1:length(job_table$prob.pars)){
-  taskname = job_table$prob.pars[[i]]$taskname
-  learnername = job_table$algo.pars[[i]]$learnername
-  model.no = job_table$algo.pars[[i]]$model.no
-  
-  result = reduceResultsList(ids = i, reg = regr, fun = function(x) {
-    tab = x$results
-    subset(tab, select = c(feature, importance))
-  })
-
-  if(!(taskname %in% names(vic)) || dim(vic[[taskname]])[1] == 0){
-    vic[[taskname]] = result[[1]]
+# perform for each data set:
+unique(design$rn)
+for(i in unique(design$rn)){
+  learnername = "TreeFARMS"
+  id = which(unique(design$rn) == i)
+  ids = job_table$job.id[((id-1)*1200+1):(id*1200)]
+  ids = ids[is.na(job_table$error[job_table$job.id %in% ids])]
+  if(length(ids) >= 1000){
+    ids = ids[1:1000]
   } else {
-    vic[[taskname]] = merge(vic[[taskname]],
-                            result[[1]],
-                            by = "feature")
+    cat(paste("Only", length(ids), "Models for data set", i))
   }
-  colnames(vic[[taskname]])[length(vic[[taskname]])] = paste0("pfi_", learnername, "_m", model.no)
-  rm(result)
-  if (i %% 500 == 0) print(paste(i, "done"))
+  res = save_results(job_table, ids, learnername)
+  if(!(i %in% names(list.pfi))) list.pfi[[i]] = list()
+  list.pfi[[i]][[learnername]] = res$list.pfi[[learnername]]
+  if(!(i %in% names(vic))){
+    vic[[i]] = res$vic
+  } else {
+    vic[[i]] = merge(vic[[i]],
+                                    res$vic,
+                                    by = "feature")
+  }
 }
 
+rn = unique(design$rn)
 # normalize VIC: max importance = 1
 vic_normalized = list()
-for(i in 1:length(pre_design$count)){
-  vic_normalized[[pre_design$rn[i]]] = vic[[pre_design$rn[i]]]
-  names = names(vic[[pre_design$rn[i]]])
-  max_per_model = apply(vic_normalized[[pre_design$rn[i]]][,-1], 2, max)
+for(i in 1:length(rn)){
+  vic_normalized[[rn[i]]] = vic[[rn[i]]]
+  names = names(vic[[rn[i]]])
+  max_per_model = apply(vic_normalized[[rn[i]]][,-1], 2, max)
   for(j in 1:length(max_per_model)){
-    vic_normalized[[pre_design$rn[i]]][,j+1] = vic_normalized[[pre_design$rn[i]]][,j+1]/max_per_model[j]
+    vic_normalized[[rn[i]]][,j+1] = vic_normalized[[rn[i]]][,j+1]/max_per_model[j]
   }
 }
 
-if(length(unique(design$learnername)) == 1){
-  tmp_vic = vic
-  tmp_vic_norm = vic_normalized
-  load("data/results_vic_bs.RData")
-  learnername = unique(design$learnername)
-  vic$bs = cbind(vic$bs, tmp_vic$bs[-1])
-  vic_normalized$bs = cbind(vic_normalized$bs, tmp_vic_norm$bs[-1])
-}
-# save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], ".RData"))
-save(vic, vic_normalized, file = paste0("data/results_vic_all_but_TreeFARMS.RData"))
+save(vic, vic_normalized, file = paste0("data/results_vic_TreeFARMS.RData"))
+

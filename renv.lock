@@ -9,9 +9,9 @@
     ]
   },
   "Python": {
-    "Version": "3.11.6",
+    "Version": "3.11.12",
     "Type": "virtualenv",
-    "Name": "/home/user/.virtualenvs/rashomon"
+    "Name": "/home/ewaldf/.cache/R/reticulate/uv/cache/archive-v0/HD6bYkRM1GcfKLCcetgEW"
   },
   "Packages": {
     "DiceKriging": {
