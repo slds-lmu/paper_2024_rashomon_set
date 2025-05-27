@@ -14,27 +14,6 @@ library(xtable)
 
 ## General settings ############################################################
 load("data/design_all_but_TreeFARMS.RData")
-
-## merge vics
-# final_vic = list()
-# final_vic_normalized = list()
-# for(i in unique(pre_design$rn)){
-#   load(paste0("data/results_vic_", i, ".RData"))
-#   # if(length(names(vic)) == 1) {
-#   #   final_vic = vic
-#   #   final_vic_normalized = vic_normalized
-#   # } else {
-#     final_vic[[i]] = vic[[i]]
-#     final_vic_normalized[[i]] = vic_normalized[[i]]
-#   # }
-# }
-# vic = final_vic
-# vic_normalized = final_vic_normalized
-# save(vic, vic_normalized, file = paste0("data/results_vic.RData"))
-
-##
-
-# load("data/results_vic.RData")
 load("data/results_vic_all_but_TreeFARMS.RData")
 
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
@@ -166,11 +145,6 @@ save(vic_RS, vic_normalized_RS, file = "data/results_vic_RS_all_but_TreeFARMS.RD
 #   true_pfi_scaled$importance = true_pfi$importance/max(true_pfi$importance)
 # }
 
-
-## for TreeFARMS
-# load("data/results_vic_TreeFARMS.RData")
-# vic_RS = vic 
-# vic_normalized_RS = vic_normalized
 
 ## Create plots
 # Function needed for plots
@@ -510,33 +484,33 @@ for(task.key in task.keys){
 # save plots
 for(task.key in task.keys){
   # scatter performance
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_performance.png")
+  name = paste0("figures/", task.key, "_pfi_scatter_performance.png")
   ggsave(name, plots[[task.key]][["performance_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_performance_scaled.png")
+  name = paste0("figures/", task.key, "_pfi_scatter_performance_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["performance_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_performance.png")
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_performance.png")
   ggsave(name, plots[[task.key]][["RS_performance_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_performance_scaled.png")
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_performance_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_performance_scatter_plot"]], width = 10, height = 5)
   # scatter learner
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_learner.png")
+  name = paste0("figures/", task.key, "_pfi_scatter_learner.png")
   ggsave(name, plots[[task.key]][["scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_scatter_learner_scaled.png")
+  name = paste0("figures/", task.key, "_pfi_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner.png")
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_learner.png")
   ggsave(name, plots[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner_scaled.png")
+  name = paste0("figures/", task.key, "_pfi_RS_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
   # boxplot
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot.png")
+  name = paste0("figures/", task.key, "_pfi_RS_boxPlot.png")
   ggsave(name, plots[[task.key]][["RS_box_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot_scaled.png")
+  name = paste0("figures/", task.key, "_pfi_RS_boxPlot_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_box_plot"]], width = 10, height = 5)
   # pairwise
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_pairwise.png")
+  name = paste0("figures/", task.key, "_pfi_RS_pairwise.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison"]], width = 12.5, height = 6.25)
   # pairwise Top 4
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_pairwise_top4.png")
+  name = paste0("figures/", task.key, "_pfi_RS_pairwise_top4.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison_top4_features"]],
          width = 12.5, height = 6.25)
   print(paste(task.key, "done"))

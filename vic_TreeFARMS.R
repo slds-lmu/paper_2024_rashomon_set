@@ -107,7 +107,7 @@ for(model.id in model.ids){
                            RS = model.id)
   design <- rbind(design, design_tmp)
 }
-
+save(design, file = paste0("data/design_TreeFARMS.RData"))
 
 
 addExperiments(
