@@ -181,14 +181,20 @@ for(task.key in task.keys){
   
   # Plot 3: Box plot
   plot3 = ggplot(vic_TFm_RS_scaled_long[[task.key]]) +
-    geom_boxplot(aes(x = feature, y = Value), fill = "gray") +
-    geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
     coord_flip() +
     labs(y = "Importance", x = "Feature", fill = "Model Class",
          title = paste("PFI values (max importance = 1):", task.key)) +
     theme_minimal(base_size = 15) +
     theme(legend.text = element_text(size=13)) +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
+  if(length(unique(vic_TFm_RS_scaled_long[[task.key]]$learner)) > 2){
+    plot3 = plot3 +
+      geom_boxplot(aes(x = feature, y = Value), fill = "gray")
+  } else {
+    plot3 = plot3 +
+      geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value))
+  }
+  
   
   plots_scaled[[task.key]] = list()
   plots_scaled[[task.key]][["RS_scatter_plot"]] = plot2
