@@ -48,8 +48,8 @@ getNullTable <- function(domain, include.id = FALSE, include.score = FALSE) {
 undebug <- function(expr) {
   debugstate <- DEBUG
   on.exit({
-    DEBUG <<- debugstate
+    DEBUG <<- debugstate  # nolint
   })
-  DEBUG <<- FALSE
+  DEBUG <<- FALSE  # nolint
   force(expr)
 }

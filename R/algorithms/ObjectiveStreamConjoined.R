@@ -123,7 +123,7 @@ ObjectiveStreamConjoined <- R6Class("ObjectiveStreamConjoined",
     },
     .sample = function(n) {
       num.streams <- length(private$.objective.streams)
-      remaining.each <- vapply(private$.objective.streams, function(os) os$remaining.rows, integer(1))
+      remaining.each <- vapply(private$.objective.streams, function(os) os$remaining.rows, numeric(1))
       if (n > sum(remaining.each)) {
         stop("Not enough samples remaining in the streams to sample n samples.")
       }

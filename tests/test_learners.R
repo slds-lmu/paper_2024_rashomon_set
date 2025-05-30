@@ -6,7 +6,7 @@
 
 test_that("Regression and classification learners have the same names", {
   expect_equal(
-    sort(names(list.learners.regr)),
+    sort(c(names(list.learners.regr), "gosdt")),  # gosdt only does classification
     sort(names(list.learners.classif)),
     info = "Names of regression and classification learners should match"
   )
@@ -74,8 +74,13 @@ test_that("All learners can be resampled on all datasets", {
   }
 
   # Test classification learners
-  for (task in classif.tasks) {
+  for (taskname in names(classif.tasks)) {
+    task <- classif.tasks[[taskname]]
     for (learner.name in names(list.learners.classif)) {
+      if (learner.name == "gosdt" && !taskname %in% names(list.tasks.binarized)) {
+        # gosdt can only handle binarized tasks
+        next
+      }
       testLearner(task, learner.name, list.learners.classif[[learner.name]])
     }
   }

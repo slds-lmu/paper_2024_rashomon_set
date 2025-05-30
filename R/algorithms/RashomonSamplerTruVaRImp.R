@@ -28,7 +28,8 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     #' @param chunk.size (`integer(1)` | `Inf`) Size of chunks to process at a time when calculating
     #'   scaled excess variance reduction. If `Inf`, the entire grid is processed at once.
     initialize = function(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
-        delta.bar, r, beta, eta, search.grid.size, seed, n.rashomon.samples, chunk.size = Inf, implicit.threshold.method = TRUE) {
+        delta.bar, r, beta, eta, search.grid.size, seed, n.rashomon.samples, chunk.size = Inf,
+        implicit.threshold.method = TRUE) {
       super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
         search.grid.size, seed, n.rashomon.samples)
       private$.delta.bar <- assertNumber(delta.bar, lower = 0, finite = TRUE)

@@ -20,7 +20,7 @@ plotOS <- function(os, variable = os$domain$ids()[[1]], samples = 1000) {
 resetTabulate <- function(filename) {
   dir.create("data/lseruns", showWarnings = FALSE, recursive = TRUE)
   .trace.table <<- paste0("data/lseruns/", filename)  # nolint
-  .has.header <<- FALSE
+  .has.header <<- FALSE  # nolint
   unlink(.trace.table)
   .tracing.start <<- Sys.time()  # nolint
 }
@@ -229,7 +229,11 @@ RashomonTracker <- R6Class("RashomonTracker",
 
       true.opt <- self$true.optimum
       true.cutoff <- calculateCutoff(true.opt, self$rashomon.epsilon, self$minimize, self$rashomon.is.relative)
-      assumed.opt <- if (self$minimize) min(self$truedata[.known == TRUE, .score]) else max(self$truedata[.known == TRUE, .score])
+      if (self$minimize) {
+        assumed.opt <- min(self$truedata[.known == TRUE, .score])
+      } else {
+        assumed.opt <- max(self$truedata[.known == TRUE, .score])
+      }
       assumed.cutoff <- calculateCutoff(assumed.opt, self$rashomon.epsilon, self$minimize, self$rashomon.is.relative)
 
       ggplot(plotting, aes_string(x = variable, y = ".score")) +

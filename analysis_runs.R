@@ -70,7 +70,8 @@ lapply(c("cs", "gc", "st", "bs"), function(curds) {
     meanfr.prop = rsize[[curds]] / allsize[[curds]] * 1:600 / rsize[[curds]],
     medianfr.prop = qhyper(0.5, rsize[[curds]], allsize[[curds]] - rsize[[curds]], 1:600) / rsize[[curds]],
     lqfr.prop = qhyper(0.25, rsize[[curds]], allsize[[curds]] - rsize[[curds]], 1:600) / rsize[[curds]],
-    uqfr.prop = qhyper(0.25, rsize[[curds]], allsize[[curds]] - rsize[[curds]], 1:600, lower.tail = FALSE) / rsize[[curds]]
+    uqfr.prop = qhyper(0.25, rsize[[curds]], allsize[[curds]] - rsize[[curds]], 1:600, lower.tail = FALSE) /
+      rsize[[curds]]
   )
 }) |> rbindlist(use.names = TRUE, fill = TRUE) -> random.fr
 
@@ -237,7 +238,8 @@ ggplot(
 ####### figure  main
 pdf("figures/main.pdf", width = 10, height = 5)
 ggplot(
-  rbind(random.fr[dataset %in% c("bs", "st")], infotable[dataset %in% c("bs", "st")], use.names = TRUE, fill = TRUE)[step <= 600],
+  rbind(random.fr[dataset %in% c("bs", "st")], infotable[dataset %in% c("bs", "st")],
+    use.names = TRUE, fill = TRUE)[step <= 600],
   aes(x = step, y = medianfr.prop, ymin = lqfr.prop, ymax = uqfr.prop, color = opter, fill = opter)
 ) +
   geom_line() +
@@ -263,7 +265,8 @@ dev.off()
 
 pdf("figures/appendix.pdf", width = 10, height = 5)
 ggplot(
-  rbind(random.fr[!dataset %in% c("bs", "st")], infotable[!dataset %in% c("bs", "st")], use.names = TRUE, fill = TRUE)[step <= 600],
+  rbind(random.fr[!dataset %in% c("bs", "st")], infotable[!dataset %in% c("bs", "st")],
+    use.names = TRUE, fill = TRUE)[step <= 600],
   aes(x = step, y = meanfr.prop, ymin = lqfr.prop, ymax = uqfr.prop, color = opter, fill = opter)
 ) +
   geom_line() +
@@ -278,7 +281,8 @@ dev.off()
 
 pdf("figures/appendix.pdf", width = 10, height = 5)
 ggplot(
-  rbind(random.fr[!dataset %in% c("bs", "st")], infotable[!dataset %in% c("bs", "st")], use.names = TRUE, fill = TRUE)[step <= 600],
+  rbind(random.fr[!dataset %in% c("bs", "st")], infotable[!dataset %in% c("bs", "st")],
+    use.names = TRUE, fill = TRUE)[step <= 600],
   aes(x = step, y = medianfr.prop, ymin = lqfr.prop, ymax = uqfr.prop, color = opter, fill = opter)
 ) +
   geom_line() +
@@ -317,9 +321,14 @@ library(patchwork)
 
 pdf("figures/appendix_opt.pdf", width = 14, height = 6)
 # Create first plot (linear scale)
-p1 <- ggplot(random.fr
+p1 <- ggplot(random.fr[dataset %in% c("cs", "gc", "bs", "st")],
+  aes(x = step, y = medianfr.prop, ymin = lqfr.prop, ymax = uqfr.prop,
+      color = opter, fill = opter)
+) +
+  geom_line() +
   geom_ribbon(alpha = 0.2) +
-  facet_wrap(~dataset, labeller = as_labeller(c(cs = "COMPAS (CS)", gc = "German Credit (GC)"))) +
+  facet_wrap(~dataset, labeller = as_labeller(c(cs = "COMPAS (CS)", gc = "German Credit (GC)",
+    bs = "Bike Sharing (BS)", st = "Synthetic (ST)"))) +
   theme_minimal() +
   theme(
     axis.text.x = element_blank(),
@@ -374,7 +383,7 @@ combined_plot <- p1 / p2 +
 combined_plot
 dev.off()
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 pdf("figures/truvar_main_narrow.pdf", width = 7, height = 6)
 # Create first plot (linear scale)
@@ -457,7 +466,8 @@ pdf("figures/f1_main.pdf", width = 7, height = 6)
 ) +
   geom_line() +
   geom_ribbon(alpha = 0.2) +
-  facet_wrap(~dataset, labeller = as_labeller(c(cs = "COMPAS (CS)", gc = "German Credit (GC)", bs = "Bike Sharing (BS)", st = "Synthetic (ST)")), scales = "free_y") +
+  facet_wrap(~dataset, labeller = as_labeller(c(cs = "COMPAS (CS)", gc = "German Credit (GC)",
+    bs = "Bike Sharing (BS)", st = "Synthetic (ST)")), scales = "free_y") +
   theme_minimal() +
   theme(
     axis.text.x = element_blank(),

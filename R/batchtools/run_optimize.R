@@ -1,25 +1,27 @@
 
 
 
-osGenerator <- function(data, job, dataset, learners, ...) {
+osGenerator <- function(data, job, dataset, learners, logscale, ...) {
   repl <- assertInt(job$repl, lower = 1, tol = 0)
   assertChoice(learners, c(names(getLearnersMeta()), "all"))
+  assertFlag(logscale)
   if (learners == "all") {
-    makeOSRConjoined(datasetid = dataset, genseed = repl + 1000)
+    makeOSRConjoined(datasetid = dataset, genseed = repl + 1000, logscale = logscale)
   } else {
-    makeObjectiveStreamRecorded(datasetid = dataset, genseed = repl + 1000, learnerid = learners)
+    makeObjectiveStreamRecorded(datasetid = dataset, genseed = repl + 1000, learnerid = learners, logscale = logscale)
   }
 }
 
 
-runOptimize <- function(data, instance, job, optimizer, logscale, ...) {
+runOptimize <- function(data, instance, job, optimizer, ...) {
   repl <- assertInt(job$repl, lower = 1, tol = 0)
-  assertFlag(logscale)
   ostream <- instance$clone(deep = TRUE)
+  logscale <- job$pars$prob.pars$logscale
+  assertFlag(logscale)
   rsampler <- makeScenarioRS(
     scenario = optimizer,
     stream = ostream,
-    initial.sample.size = ifelse(job$pars$prob.pars$learners == "all", 100, 30),
+    initial.sample.size = ifelse(job$pars$prob.pars$learners == "all", 60, 10),
     rashomon.epsilon = if (logscale) log(1.05) else 0.05,
     rashomon.is.relative = !logscale,
     seed = repl,
@@ -39,7 +41,7 @@ runOptimize <- function(data, instance, job, optimizer, logscale, ...) {
 
   tracker <- RashomonTracker$new(ostream, rsampler, instance$remaining.rows, filename = filename)
 
-  for (i in 1:500) {
+  for (i in 1:401) {
     x.asked <- rsampler$askXSamples()
     cat(sprintf("Asked %s points\n", x.asked))
     x.answered <- ostream$sample(x.asked)
@@ -61,9 +63,7 @@ runOptimize <- function(data, instance, job, optimizer, logscale, ...) {
     }
     cat(sprintf("Asked %s points\n", nrow(y.asked)))
     y.answered <- ostream$eval(y.asked)
-    if (logscale) {
-      y.answered <- log(y.answered)
-    }
+
     cat("Answered:\n")
     str(y.answered)
 

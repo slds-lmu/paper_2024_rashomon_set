@@ -12,12 +12,12 @@ list.tasks <- list(
   cs = task.cs,
   bs = task.bs,
   st = task.st,
-  cr = task.car,
-  mk = task.monk2,
-  bc = task.breast.cancer,
-  cs.bin = task.compas.binarized,
-  fc = task.fico,
-  fc.bin = task.fico.binarized
+  cr = task.cr,
+  mk = task.mk,
+  bc = task.bc,
+  cs.bin = task.cs.bin,
+  fc = task.fc,
+  fc.bin = task.fc.bin
 )
 
 
@@ -39,11 +39,11 @@ list.learners.classif <- list(
 )
 
 list.tasks.binarized <- list(
-  cr = task.car,
-  mk = task.monk2,
-  bc = task.breast.cancer,
-  cs.bin = task.compas.binarized,
-  fc.bin = task.fico.binarized
+  cr = task.cr,
+  mk = task.mk,
+  bc = task.bc,
+  cs.bin = task.cs.bin,
+  fc.bin = task.fc.bin
 )
 
 DEBUG <- FALSE

@@ -17,11 +17,16 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
     initialize = function() {
       self$baselearner <- LearnerRegrKM$new()
       super$initialize("regr.km.extra", packages = "DiceKriging",
-        feature_types = c("numeric", "integer", "logical", "factor"), # TODO do this more elegantly self$baselearner$feature_types,
+        # TODO do this more elegantly, based on self$baselearner$feature_types,
+        feature_types = c("numeric", "integer", "logical", "factor"),
         param_set = self$baselearner$param_set$clone(deep = TRUE),
         properties = self$baselearner$properties,
         predict_types = self$baselearner$predict_types,
         label = "Extra-Kriging"
+      )
+      private$.convertpo <- po("colapply",
+        affect_columns = selector_invert(selector_type(c("numeric", "integer"))),
+        applicator = as.numeric
       )
     },
     #' @description
@@ -41,11 +46,15 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
       assert_predictable(query.task, self)
 
       model <- self$model$model
-      newpoints <- as.matrix(new.points.task$data(cols = self$state$train_task$feature_names))
+      newpoints <- as.matrix(
+        new.points.task$data(cols = self$state$train_task$feature_names)[, lapply(.SD, as.numeric)]
+      )
       if (is.logical(newpoints)) {
         storage.mode(newpoints) <- "numeric"
       }
-      querypoints <- as.matrix(query.task$data(cols = self$state$train_task$feature_names))
+      querypoints <- as.matrix(
+        query.task$data(cols = self$state$train_task$feature_names)[, lapply(.SD, as.numeric)]
+      )
       if (is.logical(querypoints)) {
         storage.mode(querypoints) <- "numeric"
       }
@@ -92,11 +101,12 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
     }
   ),
   private = list(
+    .convertpo = NULL,
     .train = function(task) {
       lrn <- self$baselearner$clone(deep = TRUE)
       lrn$predict_type <- self$predict_type
       lrn$param_set$values <- self$param_set$values
-      lrn$train(convertpo$train(list(task))[[1]])
+      lrn$train(private$.convertpo$train(list(task))[[1]])
       lrn$state
     },
     .predict = function(task) {
@@ -104,7 +114,7 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
       lrn$predict_type <- self$predict_type
       lrn$param_set$values <- self$param_set$values
       lrn$state <- self$model
-      prediction <- lrn$predict(convertpo$train(list(task))[[1]])
+      prediction <- lrn$predict(private$.convertpo$train(list(task))[[1]])
       result <- list(response = prediction$response)
       if (self$predict_type == "se") {
         result$se <- prediction$se
@@ -113,9 +123,6 @@ LearnerRegrKMExtra <- R6Class("LearnerRegrKMExtra",
     }
   )
 )
-
-convertpo <- po("colapply", affect_columns = selector_invert(selector_type(c("numeric", "integer"))), applicator = as.numeric)
-
 
 posteriorVarGivenNewPoints <- function(model, Xcand, M, new.nugget) {
   assertClass(model, "km")

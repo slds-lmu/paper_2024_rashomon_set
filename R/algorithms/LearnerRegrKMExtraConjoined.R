@@ -50,8 +50,14 @@ LearnerRegrKMExtraConjoined <- R6Class("LearnerRegrKMExtraConjoined",
 
       result <- matrix(self$predict(query.task)$se, nrow = query.task$nrow, ncol = new.points.task$nrow)
 
-      querytables <- self$disjoiner$disjoinTable(cbind(query.task$data(cols = self$state$train_task$feature_names), ..row_id = seq_len(query.task$nrow)))
-      newpointtables <- self$disjoiner$disjoinTable(cbind(new.points.task$data(cols = self$state$train_task$feature_names), ..row_id = seq_len(new.points.task$nrow)))
+      querytables <- self$disjoiner$disjoinTable(
+        cbind(query.task$data(cols = self$state$train_task$feature_names),
+          ..row_id = seq_len(query.task$nrow))
+      )
+      newpointtables <- self$disjoiner$disjoinTable(
+        cbind(new.points.task$data(cols = self$state$train_task$feature_names),
+          ..row_id = seq_len(new.points.task$nrow))
+      )
 
       common.pars <- intersect(names(querytables), names(newpointtables))
       for (par in common.pars) {
@@ -184,7 +190,10 @@ LearnerRegrKMExtraConjoined <- R6Class("LearnerRegrKMExtraConjoined",
       pars <- self$param_set$values
       tables <- self$disjoiner$disjoinTable(cbind(task$data(), ..row_id = task$row_ids))
       indiv.preds <- sapply(names(tables), function(x) {
-        subtask <- as_task_regr(as_data_backend(tables[[x]], primary_key = "..row_id"), target = task$target_names, id = paste0("subspace_", x))
+        subtask <- as_task_regr(
+          as_data_backend(tables[[x]], primary_key = "..row_id"),
+          target = task$target_names, id = paste0("subspace_", x)
+        )
         l <- self$baselearner$clone(deep = TRUE)
         l$predict_type <- self$predict_type
         l$param_set$values <- pars

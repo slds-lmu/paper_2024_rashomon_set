@@ -17,7 +17,7 @@ getAllStreams <- function(datasetid) {
       subds$svm.linear[, c("svm.kernel", "config.svm.kernel") := NULL]
       subds
     })
-    .all.precomputed.streams <<- dataset
+    .all.precomputed.streams <<- dataset  # nolint
   }
   assertChoice(datasetid, names(.all.precomputed.streams))
   .all.precomputed.streams[[datasetid]]
@@ -45,23 +45,25 @@ getOptimSpace <- function(learner.id) {
 }
 
 
-makeObjectiveStreamRecorded <- function(datasetid, learnerid, genseed, debug = FALSE) {
+makeObjectiveStreamRecorded <- function(datasetid, learnerid, genseed, logscale, debug = FALSE) {
   assertString(datasetid)
   assertString(learnerid)
   assertInt(genseed, tol = 0)
   assertLogical(debug)
+  set.seed(genseed)
+  if (debug) {
+    table <- getAllStreams(datasetid)[[learnerid]][1:100]
+  } else {
+    table <- getAllStreams(datasetid)[[learnerid]][sample.int(nrow(getAllStreams(datasetid)[[learnerid]]))]
+  }
+  if (logscale) {
+    table[, score := log(score)]
+  }
   ObjectiveStreamRecorded$new(
-    id = sprintf("recorded_%s_%s_%s", datasetid, learnerid, genseed),
+    id = sprintf("recorded_%s_%s_%s%s", datasetid, learnerid, genseed, if (logscale) "_log" else ""),
     domain = getOptimSpace(learnerid),
     minimize = TRUE,
-    table = {
-      set.seed(genseed)
-      if (debug) {
-        getAllStreams(datasetid)[[learnerid]][1:100]
-      } else {
-        getAllStreams(datasetid)[[learnerid]][sample.int(nrow(getAllStreams(datasetid)[[learnerid]]))]
-      }
-    },
+    table = table,
     scorecol = "score"
   )
 }
@@ -100,11 +102,20 @@ optimizer.scenarios <- c(
   "optimize",  # bayesian optimization
   "lse.opt",  # bayesian opt to estimate threshold, followed by lse
   "truvar.opt",  # bayesian opt to estimate threshold, followed by truvar
-  "maxsd.opt",  # bayesian oprst to estimate threshold, followed by maxsd
-  "random.opt"
+  "maxsd.opt",  # bayesian opt to estimate threshold, followed by maxsd
+  "random.opt",
+  "truvar.imp.eta2",
+  "truvar.imp.r5",
+  "truvar.imp.beta2",
+  "truvar.imp.beta5",
+  "truvar.imp.beta.const3",
+  "truvar.imp.beta.const5",
+  "truvar.imp.delta1",
+  "truvar.imp.delta3"
 )
 
-makeScenarioRS <- function(scenario, stream, initial.sample.size, rashomon.epsilon, rashomon.is.relative, seed, pointslimit, optimize.length) {
+makeScenarioRS <- function(scenario, stream, initial.sample.size, rashomon.epsilon, rashomon.is.relative, seed,
+    pointslimit, optimize.length) {
   assertChoice(scenario, optimizer.scenarios)
   assertClass(stream, "ObjectiveStream")
   assertCount(initial.sample.size, tol = 0)
@@ -234,6 +245,142 @@ makeScenarioRS <- function(scenario, stream, initial.sample.size, rashomon.epsil
         seed = seed,
         beta = function(i, t, D) log(D * t^2),
         delta.bar = 0,
+        r = 0.1,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.eta2 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = function(i, t, D) log(D * t^2),
+        delta.bar = 0,
+        r = 0.1,
+        eta = 2,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.r5 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = function(i, t, D) log(D * t^2),
+        delta.bar = 0,
+        r = 0.5,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.beta2 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = function(i, t, D) 2 * log(D * t^2),
+        delta.bar = 0,
+        r = 0.5,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.beta5 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = function(i, t, D) 5 * log(D * t^2),
+        delta.bar = 0,
+        r = 0.5,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.beta.const3 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = 3,
+        delta.bar = 0,
+        r = 0.5,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.beta.const5 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = 5,
+        delta.bar = 0,
+        r = 0.5,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.delta1 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = function(i, t, D) log(D * t^2),
+        delta.bar = 0.1,
+        r = 0.1,
+        eta = 1,
+        n.rashomon.samples = 999999
+      )
+    },
+    truvar.imp.delta3 = {
+      RashomonSamplerTruVaRImp$new(
+        id = sprintf("rs_truvarimp_%s", stream$id),
+        domain = stream$domain,
+        minimize = stream$minimize,
+        rashomon.epsilon = rashomon.epsilon,
+        rashomon.is.relative = rashomon.is.relative,
+        learner = getOSModel(stream),
+        search.grid.size = min(pointslimit, stream$remaining.rows),
+        seed = seed,
+        beta = function(i, t, D) log(D * t^2),
+        delta.bar = 0.3,
         r = 0.1,
         eta = 1,
         n.rashomon.samples = 999999

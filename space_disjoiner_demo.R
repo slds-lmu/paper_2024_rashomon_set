@@ -27,3 +27,6 @@ grid$data
 sdx$disjoinTable(grid$data)
 
 sdx$disjoinTable(grid$data[c(7, 5, 4, 1)])
+
+
+
