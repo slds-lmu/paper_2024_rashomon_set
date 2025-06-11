@@ -177,7 +177,7 @@ for(i in 1:length(job_table$prob.pars)){
   }
   colnames(vic[[taskname]])[length(vic[[taskname]])] = paste0("pfi_", learnername, "_m", model.no)
   rm(result)
-  if (i %% 500 == 0) print(paste(i, "done"))
+  if (i %% 1000 == 0) print(paste(i, "done"))
 }
 
 # normalize VIC: max importance = 1

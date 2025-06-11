@@ -282,7 +282,7 @@ for(task.key in task.keys){
   # Plot 3: Box plot
   plot3 = ggplot(vic_RS_long[[task.key]]) +
     geom_boxplot(aes(x = feature, y = Value), fill = "gray") +
-    geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
+    # geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
     coord_flip() +
     labs(y = "Importance", x = "Feature", fill = "Model Class",
          title = paste("PFI values (max importance = 1):", task.key)) +
@@ -467,7 +467,7 @@ for(task.key in task.keys){
   # Plot 3: Box plot
   plot3 = ggplot(vic_RS_scaled_long[[task.key]]) +
     geom_boxplot(aes(x = feature, y = Value), fill = "gray") +
-    geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
+    # geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value)) +
     coord_flip() +
     labs(y = "Importance", x = "Feature", fill = "Model Class",
          title = paste("PFI values (max importance = 1):", task.key)) +
