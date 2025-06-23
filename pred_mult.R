@@ -89,7 +89,7 @@ job_table = getJobTable()
 preds = list()
 
 
-for(i in 1:length(job_table$prob.pars)){
+for(i in 1:48830){
   taskname = job_table$prob.pars[[i]]$taskname
   learnername = job_table$algo.pars[[i]]$learnername
   model.no = job_table$algo.pars[[i]]$model.no
