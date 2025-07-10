@@ -70,7 +70,7 @@ addAlgorithm("RashomonCapacity", fun = function(data, instance, job) {
     }
     
     # Build objective terms
-    obj_terms_list <- list()
+    obj_terms_list <- vector("list", n)
     for (i_idx in 1:n) {
       P_i_group_matrix <- P_array[i_idx, , ] # k x m matrix for group i
       
@@ -174,4 +174,8 @@ for(i in 48831:length(job_table$prob.pars)){
 
 save(result_pred.mult, file = paste0("data/results_pred.mult_all_but_TreeFARMS.RData"))
 
+load("data/results_pred.mult_all_but_TreeFARMS.RData")
+i = 48831+23
+i = 48831+36
 
+ids = c(48831+23, 48831+36)

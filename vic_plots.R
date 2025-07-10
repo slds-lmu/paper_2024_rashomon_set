@@ -35,24 +35,7 @@ for(task.key in task.keys){
   }
 }
 
-# OLD
-# performance = list()
-# kernel = list()
-# for(task.key in task.keys){
-#   performance[[task.key]] = list()
-#   kernel[[task.key]] = c()
-#   for(learner.key in learner.keys){
-#     dt = run_models$torun.samples[[learner.key]]
-#     performance[[task.key]][[learner.key]] = dt[taskname == task.key]$score
-#     if(learner.key == "svm"){
-#       kernel[[task.key]] = c(kernel[[task.key]],paste0("svm_",dt[taskname == task.key]$svm.kernel))
-#     }
-#   }
-# }
-# # svm per task
-# svm_per_task = pre_design[pre_design$learnername == "svm",c("rn", "count")]
-
-# create model-agnostic Rashomon set
+#### create model-agnostic Rashomon set #### 
 best_performance = apply(sapply(performance, sapply, min),2,min)
 perf_index_RS = list()
 vic_RS = list()
@@ -146,7 +129,7 @@ save(vic_RS, vic_normalized_RS, file = "data/results_vic_RS_all_but_TreeFARMS.RD
 # }
 
 
-## Create plots
+##  Create plots ##############################################################
 # Function needed for plots
 gpairs_lower <- function(g){
   g$plots <- g$plots[-(1:g$nrow)]
@@ -161,6 +144,8 @@ gpairs_lower <- function(g){
 }
 
 alpha_value = 0.3
+
+#### vic standard #### 
 
 vic_long = list()
 vic_wide = list()
@@ -223,6 +208,8 @@ for(task.key in task.keys){
   plots[[task.key]][["performance_scatter_plot"]] = plot1
   plots[[task.key]][["scatter_plot"]] = plot2
 }
+
+#### vic RS standard #### 
 
 vic_RS_long = list()
 vic_RS_wide = list()
@@ -343,7 +330,7 @@ for(task.key in task.keys){
   plots[[task.key]][["RS_pairwise_comparison_top4_features"]] = gpairs_lower(plot5)
 }
 
-# vic_normalized
+#### vic normalized #### 
 vic_scaled_long = list()
 vic_scaled_wide = list()
 plots_scaled = list()
@@ -405,6 +392,8 @@ for(task.key in task.keys){
   plots_scaled[[task.key]][["performance_scatter_plot"]] = plot1
   plots_scaled[[task.key]][["scatter_plot"]] = plot2
 }
+
+#### vic RS normalized ####
 
 vic_RS_scaled_long = list()
 vic_RS_scaled_wide = list()
@@ -481,7 +470,7 @@ for(task.key in task.keys){
 }
 
 
-# save plots
+## save plots #################################################################
 for(task.key in task.keys){
   # scatter performance
   name = paste0("figures/", task.key, "_pfi_scatter_performance.png")
