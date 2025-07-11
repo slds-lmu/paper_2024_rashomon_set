@@ -7,7 +7,7 @@ getLearnersMeta()
 
 getOptimSpace("svm.radial")
 
-makeObjectiveStreamRecorded("st", "svm.radial", 1, debug = TRUE)
+makeObjectiveStreamRecorded("st", "svm.radial", 1, FALSE, debug = TRUE)
 
 
 debug.streams <- list(
@@ -37,7 +37,7 @@ debugosc <- ObjectiveStreamConjoined$new(
 
 
 
-debugosc <- makeOSRConjoined("st", learners = c("svm.radial", "svm.linear"), genseed = 1, debug = TRUE)
+debugosc <- makeOSRConjoined("st", learners = c("svm.radial", "svm.linear"), logscale = FALSE, genseed = 1, debug = TRUE)
 
 plotOS(debugosc, "svm.radial.svm.cost", 50)
 
@@ -97,15 +97,17 @@ library("ggplot2")
 plotOS(osgauss, "x", 100)
 
 {
-pointslimit <- Inf
+pointslimit <- 800
 # problem <- osgauss$clone(deep = TRUE)
 # optim <- makeScenarioRS("truvar", problem, 5, 0.3, TRUE, 1, pointslimit, optimize.length = 4)
 
-# problem <- ossquare$clone(deep = TRUE)
+problem <- ossquare$clone(deep = TRUE)
 # optim <- makeScenarioRS("truvar.imp", problem, 5, 20, FALSE, 1, pointslimit, optimize.length = 4)
 
-problem <- makeOSRConjoined("st", genseed = 1)
-optim <- makeScenarioRS("truvar.imp", problem, 100, 0.05, TRUE, 1, problem$remaining.rows, optimize.length = 4)
+# problem <- makeOSRConjoined("st", logscale = FALSE, genseed = 1)
+#problem <- makeObjectiveStreamRecorded("st", "svm.radial", 1, FALSE, debug = FALSE)
+# optim <- makeScenarioRS("truvar.imp", problem, 100, 0.05, TRUE, 1, problem$remaining.rows, optimize.length = 4)
+optim <- makeScenarioRS("truvar.imp", problem, 5, 0.05, TRUE, 1, pointslimit, optimize.length = 4)
 
 ### optimization loop
 optimizer <- optim$clone(deep = TRUE)
@@ -114,7 +116,7 @@ rsampler <- problem$clone(deep = TRUE)
 
 # TODO need jitter = TRUE
 
-tracker <- RashomonTracker$new(rsampler, optimizer, pointslimit)
+tracker <- RashomonTracker$new(rsampler, optimizer, pointslimit, filename = "DEBUGRUN")
 
 
 # repeat until out of points
@@ -150,6 +152,9 @@ y.asked <- optimizer$askYValues()
 ## here we have the model fitted for the last told result
 lastmodel <- optimizer$samplers[[optimizer$sampler.index]]$lastmodel
 tracker$recordYAsked(y.asked, lastmodel, optimizer$samplers[[optimizer$sampler.index]]$metainfo)
+# ggsave("data/debugplot.pdf", tracker$plot2D("svm.cost", "svm.gamma"))
+ggsave("data/debugplot.pdf", tracker$plot1D("x"))
+readline("Press Enter to continue")
 }
 
 tracker$plot1D("x")

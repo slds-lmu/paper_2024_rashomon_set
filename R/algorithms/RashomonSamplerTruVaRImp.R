@@ -27,9 +27,17 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     #'   RashomonSampler implementations may optimize their behaviour to hit this target specifically.
     #' @param chunk.size (`integer(1)` | `Inf`) Size of chunks to process at a time when calculating
     #'   scaled excess variance reduction. If `Inf`, the entire grid is processed at once.
+    #' @param implicit.threshold.method (`logical(1)`) Whether to use an implicit threshold method;
+    #'   otherwise, this is just the `TruVar` algorithm.
+    #' @param global.choice (`logical(1)`) Whether to choose from all points in the search grid; by default, only
+    #'   undecided points are considered.
+    #' @param monotonic.sets (`logical(1)`) Whether to use monotonoc L/H/M-sets, i.e. points that enter / leave these
+    #'   sets stay there.
     initialize = function(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
         delta.bar, r, beta, eta, search.grid.size, seed, n.rashomon.samples, chunk.size = Inf,
-        implicit.threshold.method = TRUE) {
+        implicit.threshold.method = TRUE,
+        global.choice = FALSE,
+        monotonic.sets = TRUE) {
       super$initialize(id, domain, minimize, rashomon.epsilon, rashomon.is.relative, learner,
         search.grid.size, seed, n.rashomon.samples)
       private$.delta.bar <- assertNumber(delta.bar, lower = 0, finite = TRUE)
@@ -50,6 +58,8 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
       )
       private$.chunk.size <- chunk.size
       private$.implicit.threshold.method <- implicit.threshold.method
+      private$.global.choice <- global.choice
+      private$.monotonic.sets <- monotonic.sets
     }
   ),
   active = list(
@@ -67,6 +77,12 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     #' @field chunk.size (`integer(1)`) Size of chunks to process at a time when calculating
     #'   scaled excess variance reduction.
     chunk.size = function() private$.chunk.size,
+    #' @field global.choice (`logical(1)`) Whether to choose from all points in the search grid; by default, only
+    #'   undecided points are considered.
+    global.choice = function() private$.global.choice,
+    #' @field monotonic.sets (`logical(1)`) Whether to use monotonoc L/H/M-sets, i.e. points that enter / leave these
+    #'   sets stay there.
+    monotonic.sets = function() private$.monotonic.sets,
     #' @field metainfo (`list`) Additional information about the sampler
     metainfo = function() {
       row <- seq_len(nrow(private$.search.grid))
@@ -91,6 +107,8 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     .chunk.size = NULL,
     .last.epoch.switch = NULL,
     .implicit.threshold.method = NULL,
+    .global.choice = NULL,
+    .monotonic.sets = NULL,
     .L = NULL,  # points in the low set
     .H = NULL,  # points in the high set
     .U = NULL,  # unclassified points
@@ -98,7 +116,7 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
     .askYValuesWithLearner = function(mean.pred, sd.pred, known.y, known.y.predicted, known.y.predicted.sd,
         grid.known, grid.unknown, learner) {
 
-      if (is.null(private$.L)) {
+      if (is.null(private$.L) || !private$.monotonic.sets) {
         private$.L <- integer(0)
         private$.H <- integer(0)
         private$.U <- seq_len(nrow(private$.search.grid))
@@ -190,7 +208,12 @@ RashomonSamplerTruVaRImp <- R6Class("RashomonSamplerTruVaRImp",
         interval.width <- sqrt.beta.i * sd.pred.full
       }
 
-      unclassified.unknowns <- which(pred.index.to.fullindex %in% c(private$.M, private$.U))
+      if (private$.global.choice) {
+        unclassified.unknowns <- seq_along(pred.index.to.fullindex)
+      } else {
+        unclassified.unknowns <- which(pred.index.to.fullindex %in% c(private$.M, private$.U))
+      }
+
       if (!length(unclassified.unknowns) || !length(private$.U)) {
         return(1L)
       }

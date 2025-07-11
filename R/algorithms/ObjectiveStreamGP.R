@@ -17,6 +17,7 @@ ObjectiveStreamGP <- R6Class("ObjectiveStreamGP",
     #' Initialize the objective function.
     #' @param lengthscales (`numeric`) The lengthscales of the Gaussian process.
     #'   This implicitly defines the number of dimensions.
+    #'   Large lengthscales mean that the GP is smooth and does not vary much.
     #' @param noise (`numeric(1)`) The noise of the Gaussian process.
     #' @param id (`character(1)`) The id of the objective function, used to identify the objective when printing.
     #' @param seed (`integer(2)`) Seed used both to initialize the sample stream (first element) and the evaluation

@@ -211,6 +211,7 @@ RashomonTracker <- R6Class("RashomonTracker",
       }
       yvals <= cutoff
     },
+    # subset: index or logical selecting rows of truedata
     plot1D = function(variable, subset) {
       if (!missing(subset)) {
         subset.expr <- substitute(subset)
@@ -252,6 +253,126 @@ RashomonTracker <- R6Class("RashomonTracker",
         geom_ribbon(aes(ymin = .predicted - 3 *.predicted.sd, ymax = .predicted + 3 *.predicted.sd), alpha = 0.2) +
         geom_text(data = plotting[.known == TRUE], aes(label = .iteration), color = "red", size = 10, vjust = 1.5) +
         theme(aspect.ratio = 1)
+    },
+    plot2D = function(variable1, variable2, subset) {
+      if (!missing(subset)) {
+        subset.expr <- substitute(subset)
+        subset.expr <- eval(subset.expr, self$truedata)
+        assert(
+          checkLogical(subset.expr, any.missing = FALSE, len = nrow(self$truedata)),
+          checkIntegerish(subset.expr, any.missing = FALSE, lower = 1, upper = nrow(self$truedata), tol = 0)
+        )
+        if (is.logical(subset.expr)) {
+          subset.expr <- which(subset.expr)
+        }
+        plotting <- self$truedata[subset.expr]
+      } else {
+        plotting <- self$truedata
+      }
+
+      true.opt <- self$true.optimum
+      true.cutoff <- calculateCutoff(true.opt, self$rashomon.epsilon, self$minimize, self$rashomon.is.relative)
+      if (self$minimize) {
+        assumed.opt <- min(self$truedata[.known == TRUE, .score])
+      } else {
+        assumed.opt <- max(self$truedata[.known == TRUE, .score])
+      }
+      assumed.cutoff <- calculateCutoff(assumed.opt, self$rashomon.epsilon, self$minimize, self$rashomon.is.relative)
+
+      # Remove rows with missing values for plotting variables
+      plotting <- plotting[!is.na(get(variable1)) & !is.na(get(variable2))]
+
+      # Create data for the four different surfaces
+      plot.data.list <- list(
+        "True Score" = plotting[, c(variable1, variable2, ".score", ".is.in.M", ".lse.set", ".known", ".iteration"), with = FALSE],
+        "Predicted" = plotting[!is.na(.predicted), c(variable1, variable2, ".predicted", ".is.in.M", ".lse.set", ".known", ".iteration"), with = FALSE],
+        "Lower Bound" = plotting[!is.na(.predicted) & !is.na(.predicted.sd),
+                                c(variable1, variable2, ".is.in.M", ".lse.set", ".known", ".iteration"), with = FALSE],
+        "Upper Bound" = plotting[!is.na(.predicted) & !is.na(.predicted.sd),
+                                c(variable1, variable2, ".is.in.M", ".lse.set", ".known", ".iteration"), with = FALSE]
+      )
+
+      # Add computed z values
+      names(plot.data.list[[1]])[3] <- "z"
+      names(plot.data.list[[2]])[3] <- "z"
+      plot.data.list[[3]][, z := plotting[!is.na(.predicted) & !is.na(.predicted.sd), .predicted - 3 * .predicted.sd]]
+      plot.data.list[[4]][, z := plotting[!is.na(.predicted) & !is.na(.predicted.sd), .predicted + 3 * .predicted.sd]]
+
+      # Add panel identifier
+      for (i in seq_along(plot.data.list)) {
+        plot.data.list[[i]][, panel := names(plot.data.list)[i]]
+      }
+
+      # Combine all data
+      combined.data <- rbindlist(plot.data.list, fill = TRUE)
+      combined.data[, panel := factor(panel, levels = names(plot.data.list))]
+
+      # Define reference levels for each panel
+      ref.levels <- list(
+        "True Score" = c(true.opt, assumed.opt, true.cutoff, assumed.cutoff),
+        "Predicted" = c(true.opt, assumed.opt, true.cutoff, assumed.cutoff),
+        "Lower Bound" = c(true.opt, assumed.opt, true.cutoff, assumed.cutoff),
+        "Upper Bound" = c(true.opt, assumed.opt, true.cutoff, assumed.cutoff)
+      )
+      ctr <- combined.data[,
+        {
+          itp <- interp::interp(svm.cost, svm.gamma, z, method = "linear", duplicate = "strip", nx = 200, ny = 200)
+          cbind(CJ(var2 = itp$x, var1 = itp$y), z = as.vector(itp$z))
+        },
+        by = panel
+      ]
+      setnames(ctr, c("var1", "var2"), c(variable1, variable2))
+
+      # Create base plot
+      p <- ggplot(combined.data, aes_string(x = variable1, y = variable2, z = "z")) +
+        geom_contour_filled(data = ctr, alpha = 0.7, bins = 15) +
+        geom_contour(data = ctr, color = "white", alpha = 0.5, bins = 15, size = 0.2) +
+        facet_wrap(~panel, scales = "free", ncol = 2) +
+        theme_bw() +
+        theme(aspect.ratio = 1, legend.position = "bottom")
+
+      # Add reference contour lines for each panel
+      for (panel.name in names(ref.levels)) {
+        panel.data <- ctr[panel == panel.name]
+        if (nrow(panel.data) > 0) {
+          # Add contour lines for reference values
+          p <- p +
+            geom_contour(data = panel.data,
+                        breaks = c(true.opt),
+                        color = "black", linetype = "solid", size = 1) +
+            geom_contour(data = panel.data,
+                        breaks = c(assumed.opt),
+                        color = "black", linetype = "dashed", size = 1) +
+            geom_contour(data = panel.data,
+                        breaks = c(true.cutoff),
+                        color = "blue", linetype = "solid", size = 1) +
+            geom_contour(data = panel.data,
+                        breaks = c(assumed.cutoff),
+                        color = "blue", linetype = "dashed", size = 1)
+        }
+      }
+
+      # Add point markers for different classifications
+      p <- p +
+        geom_point(data = combined.data[.is.in.M == TRUE & .lse.set == "L"],
+                  color = "green", size = 2, shape = 8) +
+        geom_point(data = combined.data[.is.in.M == FALSE & .lse.set == "L"],
+                  color = "green", size = 2, shape = 7) +
+        geom_point(data = combined.data[.is.in.M == TRUE & .lse.set == "H"],
+                  color = "blue", size = 2, shape = 8) +
+        geom_point(data = combined.data[.is.in.M == FALSE & .lse.set == "H"],
+                  color = "blue", size = 2, shape = 7) +
+        geom_point(data = combined.data[.known == TRUE],
+                  color = "red", size = 3, shape = 16)
+
+      # Add iteration labels for known points
+      if (nrow(combined.data[.known == TRUE & !is.na(.iteration)]) > 0) {
+        p <- p + geom_text(data = combined.data[.known == TRUE & !is.na(.iteration)],
+                          aes_string(label = ".iteration"),
+                          color = "red", size = 5, vjust = -0.5)
+      }
+
+      return(p)
     }
   )
 )
