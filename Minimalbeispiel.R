@@ -9,26 +9,123 @@ combinations_df <- do.call(rbind, lapply(names(preds), function(task) {
   data.frame(task = task, learner = learners, stringsAsFactors = FALSE)
 }))
 
+# Algorithm 
+calculateRashomonCapacity <- function(instance) {
+  
+  if(is.null(instance[[1]]$prob)){
+    num.datapoints <- length(instance[[1]]$row_ids)    # observations
+    num_models <- length(instance)        # models
+    
+    # CVXR variable for weights
+    w <- Variable(num_models, name = "w")
+    
+    # Extract the probability matrices
+    predictions_list <- lapply(instance, function(x) x$response)
+    # Combine into a matrix: n_observations x num_models
+    # Each column is the predictions from one model for all observations.
+    H_matrix <- simplify2array(predictions_list)
+    
+    objective <- sum_entries(H_matrix^2 %*% w) - sum_entries(power(H_matrix %*% w, 2))
+    
+  }else{
+    num.classes <- 2
+    num.models <- length(instance)
+    num.datapoints <- nrow(instance[[1]]$prob)
+    
+    
+    # predmats: num.models times num.datapoints x num.classes
+    predmats <- lapply(instance, function(p) {
+      p$prob
+    })
+    
+    predarray <- simplify2array(predmats)  # array [num.datapoints, num.classes, num.models]
+    
+    # vector of length num.models which gets then taken %*% w
+    pred.entropy.vector <- apply(
+      ifelse(predarray < 1e-12, 0, -predarray * log(predarray)),
+      3, sum
+    )
+    
+    pred.entropy.matrix <- matrix(predarray, nrow = num.datapoints * num.classes, ncol = num.models)
+    
+    # stopifnot(setequal(pred.entropy.matrix[, 1], predarray[, , 1]))
+    # stopifnot(setequal(pred.entropy.matrix[, 2], predarray[, , 2]))
+    # stopifnot(!setequal(pred.entropy.matrix[, 2], predarray[, 2, ]))
+    # stopifnot(!setequal(pred.entropy.matrix[, 2], predarray[2, , ]))
+    
+    w <- Variable(num.models, name = "w")
+    
+    objective <- sum_entries(entr(pred.entropy.matrix %*% w)) - t(pred.entropy.vector) %*% w
+  }
+  
+  constraints <- list(w >= 0, sum_entries(w) == 1)
+  
+  problem <- Problem(Maximize(objective), constraints)
+  
+  result <- solve(problem, solver = "SCS", verbose = TRUE, num_iter = 100000, 
+                  feastol = 1e-7, abstol = 1e-7, reltol = 1e-7,
+                  acceleration_lookback = 10
+  )
+  
+  oldresult <- NULL
+  
+  if (result$status != "optimal") {
+    oldresult <- result
+    result <- solve(problem, solver = "ECOS", verbose = TRUE, num_iter = 1000, 
+                    feastol = 1e-7, abstol = 1e-7, reltol = 1e-7)
+  }
+  
+  list(
+    value = result$value / num.datapoints,
+    status = result$status,
+    solver = result$solver,
+    iters = result$num_iters,
+    var = result$getValue(w),
+    status.old = oldresult$status,
+    solver.old = oldresult$solver,
+    iters.old = oldresult$num_iters,
+    value.old = oldresult$value / num.datapoints,
+    time.old = oldresult$solve_time
+  )
+}
 
-# Example on binary classification ############################################
+
+# binary classification
 taskname = combinations_df$task[1]
 learnername = combinations_df$learner[1]
 instance = preds[[taskname]][[learnername]]
 
-# Algorithm start 
+result = calculateRashomonCapacity(instance)
+
+# Regression  
+taskname = combinations_df$task[8]
+learnername = combinations_df$learner[8]
+instance = preds[[taskname]][[learnername]]
+
+result_reg = calculateRashomonCapacity(instance)
+
+
+### OLD ###########
 n <- length(instance[[1]]$row_ids)    # observations
 num_models <- length(instance)        # models
 
-# CVXR variable for weights
-w <- Variable(num_models)
 
 # Extract the probability matrices from each predictor
   prob_list <- lapply(instance, function(x) x$prob)
   # Stack into an array of shape n x k x m
   # Use `simplify2array()` to stack and then aperm to get correct dimensions
-  P_array <- simplify2array(prob_list)  # This gives an array of dim n x m x k
-  # Rearrange dimensions to n x k x m
+  P_array <- simplify2array(prob_list)  # This gives an array of dim n x k x m
+  # Rearrange dimensions to n x m x k
   P_array <- aperm(P_array, c(1, 3, 2))
+  
+  # smaller example
+  # num_models = 5
+  # n = 10
+  # P_array = P_array[1:n, 1:num_models, ]
+
+  # CVXR variable for weights
+  w <- Variable(num_models)
+  
   # CVXR-compatible entropy: H(p) = sum(entr(p_d)), where entr(x) = -x*log(x)
   entropy_cvxr <- function(p_vector_expr) {
     sum_entries(entr(p_vector_expr))
@@ -62,11 +159,14 @@ w <- Variable(num_models)
   }
   
   # Overall objective: sum of concave terms = concave
-  objective_expr <- Reduce(`+`, obj_terms_list)
+  # objective_expr <- Reduce(`+`, obj_terms_list)
+  objective_expr <- sum_entries(do.call(vstack, obj_terms_list))  # linear-time construction
   
   
 # Constraints for w (simplex)
 constraints_list <- list(w >= 0, sum(w) == 1)
+
+# stop(123)
 
 # The objective is concave, CVXR can maximize a concave objective.
 problem <- Problem(Maximize(objective_expr), constraints_list)
@@ -191,7 +291,7 @@ for (i_idx in 1:n) {
 }
 
 # Overall objective: sum of concave terms = concave
-objective_expr <- Reduce(`+`, obj_terms_list)
+# objective_expr <- Reduce(`+`, obj_terms_list)
 
 # summe = obj_terms_list[[1]]+obj_terms_list[[2]]
 # for(i in 3:length(obj_terms_list)){
@@ -208,10 +308,10 @@ objective_expr <- Reduce(`+`, obj_terms_list)
 # objective_expr2 <- Reduce(`+`, obj_terms_list[101:200])
 # 
 # objective_expr1 + objective_expr2
-# 
+
 # obj_terms_list[[1]] + obj_terms_list[[2]]
 # 
-# objective_expr <- sum_entries(do.call(vstack, obj_terms_list))  # linear-time construction
+objective_expr <- sum_entries(do.call(vstack, obj_terms_list))  # linear-time construction
 
 # Constraints for w (simplex)
 constraints_list <- list(w >= 0, sum(w) == 1)

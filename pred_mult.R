@@ -37,8 +37,8 @@ addProblem("fromlist", fun = function(data, job, taskname) {
 # Define Algorithm
 addAlgorithm("predict", fun = function(data, instance, job, learnername, model.no) {
   # TreeFARMS Models
-  name = sprintf("/media/external/rashomon/datafiles/%s/%s/samplemodel_%s_%s_%04d.rds",
-                 job$pars$prob.pars$taskname, learnername, learnername, job$pars$prob.pars$taskname, model.no)
+  name = sprintf("/media/external/rashomon/rashomon_models/%s/%s/foundmodel_%s_%s_%04d.rds",
+                 learnername, job$pars$prob.pars$taskname, learnername, job$pars$prob.pars$taskname, model.no)
   model = readRDS(name)
   
   # Fix models in case of task bs (logical features)
