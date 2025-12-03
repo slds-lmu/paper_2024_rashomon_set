@@ -40,7 +40,7 @@ addAlgorithm("predict", fun = function(data, instance, job, learnername, model.i
   # TreeFARMS Models
   model <- readRDS(sprintf("/media/external/rashomon/datafiles/treefarms/treefarms_%s.rds", RS))
   try(model$modelcontainer)
-  model$param_set$values$selected_tree <- model.id
+  model$param_set$values$selected_tree <- as.character(model.id)
   
   # Fix models in case of task bs (logical features)
   if(job$pars$prob.pars$taskname == "bs"){
@@ -79,6 +79,7 @@ for(model.id in model.ids){
                            RS = model.id)
   design <- rbind(design, design_tmp)
 }
+
 
 # Experiments
 addExperiments(

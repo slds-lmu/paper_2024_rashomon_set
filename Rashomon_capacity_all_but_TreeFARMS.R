@@ -126,21 +126,20 @@ addExperiments(
   repls = 1,
   combine = "bind"
 )
-# Rashomon Capacity per task
-addExperiments(
-  prob.designs = list(fromlist = data.table(taskname = names(preds),
-                                             learnername = NULL)),
-  algo.designs = list(RashomonCapacity = data.table()),
-  repls = 1,
-  combine = "bind"
-)
+# Rashomon Capacity per task ## Sinn?
+# addExperiments(
+#   prob.designs = list(fromlist = data.table(taskname = names(preds),
+#                                              learnername = NULL)),
+#   algo.designs = list(RashomonCapacity = data.table()),
+#   repls = 1,
+#   combine = "bind"
+# )
 
 
 
 
 # Run batchtools
-testJob(48831)
-testJob(48889)
+testJob(1)
 
 submitJobs(findErrors())
 submitJobs()
@@ -158,17 +157,31 @@ submitJobs(ids = jt_RC$job.id)
 # save results 
 job_table = getJobTable()
 
-result_pred.mult = data.frame(taskname = character(), learnername = character(), RS.algo = character(), pred.mult = numeric())
-for(i in 48831:length(job_table$prob.pars)){
-  result_pred.mult[i-48830, "taskname"] = job_table$prob.pars[[i]]$taskname
-  if(!is.null(job_table$prob.pars[[i]]$learnername)) result_pred.mult[i-48830, "learnername"] = job_table$prob.pars[[i]]$learnername
-  result_pred.mult[i-48830, "RS.algo"] = "CASHomon"
-  if(!(length(reduceResultsList(ids = i)[[1]]) == 0)) result_pred.mult[i-48830, "pred.mult"] = reduceResultsList(ids = i)[[1]]
-  
-  # if ((i-48830) %% 1000 == 0) print(paste(i-48830, "done"))
-}
+# result_pred.mult = data.table(taskname = character(), learnername = character(), RS.algo = character(), pred.mult = numeric())
+# load("data/results_pred.mult_all_but_TreeFARMS.RData")
+results <- vector("list", length(job_table$job.id))
+count <- 1
 
-save(result_pred.mult, file = paste0("data/results_pred.mult_all_but_TreeFARMS.RData"))
+for(i in job_table$job.id){
+  taskn = job_table[job.id == i]$prob.pars[[1]]$taskname
+  if(!is.null(job_table[job.id == i]$prob.pars[[1]]$learnername)){
+    learnern = job_table[job.id == i]$prob.pars[[1]]$learnername
+  }else{
+    learnern = NA
+  } 
+  RS.algo = "CASHomon"
+  if(!(length(reduceResultsList(ids = i)[[1]]) == 0)){
+    pred.mult = reduceResultsList(ids = i)[[1]]$value
+  }else{
+    pred.mult = NA
+  } 
+  
+  results[[count]] <- data.table(taskname = taskn, learnername = learnern, RS.algo = RS.algo, pred.mult = pred.mult)
+  count <- count + 1
+}
+result_pred.mult = do.call(rbind, results)
+
+save(result_pred.mult, file = "data/results_pred.mult_all_but_TreeFARMS.RData")
 
 load("data/results_pred.mult_all_but_TreeFARMS.RData")
 i = 48831+23

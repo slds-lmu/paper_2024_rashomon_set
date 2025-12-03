@@ -12,7 +12,7 @@ library(batchtools)
 regr = loadRegistry("/media/external/ewaldf/all_but_TreeFARMS_preds", writeable = TRUE)
 
 # Define Cluster-Configurations
-regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 25)
+regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 20)
 
 # Define Problem
 addProblem("fromlist", fun = function(data, job, taskname) {
@@ -35,10 +35,11 @@ addProblem("fromlist", fun = function(data, job, taskname) {
 
 
 # Define Algorithm
-addAlgorithm("predict", fun = function(data, instance, job, learnername, model.no) {
-  # TreeFARMS Models
-  name = sprintf("/media/external/rashomon/rashomon_models/%s/%s/foundmodel_%s_%s_%04d.rds",
-                 learnername, job$pars$prob.pars$taskname, learnername, job$pars$prob.pars$taskname, model.no)
+addAlgorithm("predict", fun = function(data, instance, job, learnername, model.no, rds) {
+  
+  name = sprintf("/media/external/rashomon/rashomon_models/%s/%s/%s",
+                   learnername, job$pars$prob.pars$taskname, rds)
+    
   model = readRDS(name)
   
   # Fix models in case of task bs (logical features)
@@ -85,14 +86,21 @@ waitForJobs()
 ## Extract Results ----------------------------------------------------------
 
 # save results per data set and learner
+findErrors() |> getJobTable() -> jt
+submitJobs(ids = jt$job.id)
+
+getJobTable() -> jt
+job_table = jt[design$learnername != "global"]
+
 job_table = getJobTable()
+
 preds = list()
 
 
-for(i in 1:48830){
-  taskname = job_table$prob.pars[[i]]$taskname
-  learnername = job_table$algo.pars[[i]]$learnername
-  model.no = job_table$algo.pars[[i]]$model.no
+for(i in job_table$job.id){
+  taskname = job_table[job.id == i]$prob.pars[[1]]$taskname
+  learnername = job_table[job.id == i]$algo.pars[[1]]$learnername
+  model.no = job_table[job.id == i]$algo.pars[[1]]$model.no
   
   result = reduceResultsList(ids = i)
   
@@ -108,7 +116,7 @@ for(i in 1:48830){
   }
   
   rm(result)
-  if (i %% 1000 == 0) print(paste(i, "done"))
+  if (i %% 1000 == 0) print(paste("id", i, "done"))
 }
 
 save(preds, file = paste0("data/results_preds_all_but_TreeFARMS.RData"))

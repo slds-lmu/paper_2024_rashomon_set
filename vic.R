@@ -35,11 +35,11 @@ addProblem("fromlist", fun = function(data, job, taskname) {
 })
 
 # Define Algorithm for VIC calculation based on PFI
-addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnername, model.no) {
+addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnername, model.no, rds) {
   # browser()
   options(future.globals.maxSize= 20e8)
-  name = sprintf("/media/external/rashomon/datafiles/%s/%s/samplemodel_%s_%s_%04d.rds",
-                 job$pars$prob.pars$taskname, learnername, learnername, job$pars$prob.pars$taskname, model.no)
+  name = sprintf("/media/external/rashomon/rashomon_models/%s/%s/%s",
+                 learnername, job$pars$prob.pars$taskname, rds)
   model = readRDS(name)
 
   # Fix models in case of task bs (logical features)
@@ -87,26 +87,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
   calculate_pfi(task = instance, model = model, seed = 1, perm.reps = 10)
 })
 
-# Information about models
-run_models = readRDS("/media/external/rashomon/datafiles/model_info/run_models.rds")
-run_models_no = transpose(rbindlist(lapply(run_models$torun.rashomon.learnerwise.1k, 
-                                           function(x) as.data.frame(as.list(table(x$taskname)), 
-                                                                     stringAsFactors = F)), 
-                                    fill = TRUE, idcol = "rn"), 
-                          make.names = "rn", keep.names = "rn")
-run_models_no[is.na(run_models_no)] <- 0
-
-# change the following 2 lines
-pre_design = data.table(pivot_longer(run_models_no, !rn, 
-                                     names_to = "learnername", 
-                                     values_to = "count"))
-design = pre_design[rn %in% c("cs.bin", "bc", "mk", "cr", "fc.bin", "bs", "cs", "gc", "st"), .(rn = rep(rn, each = count),
-                        learnername = rep(learnername, each = count),
-                        model.no = sequence(count)), by = .(rn, learnername)]
-design = design[,-(1:2)]
-rm(run_models, run_models_no)
-save(pre_design, design, file = paste0("data/design_all_but_TreeFARMS.RData"))
-# save(pre_design, design, file = paste0("data/design_", design$rn[1], ".RData"))
+load("data/design_all_but_TreeFARMS.RData")
 
 addExperiments(
   prob.designs = list(fromlist = data.table(taskname = design$rn)),
