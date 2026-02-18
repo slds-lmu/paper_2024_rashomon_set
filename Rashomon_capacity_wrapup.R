@@ -172,16 +172,16 @@ for (t in tasks_rc) {
   RC_perf_sub = RC_perf %>% filter(task == t)
   score_label = paste(sort(unique(RC_perf_sub$score)), collapse = ", ")
   
-  plot_rc_vs_perf = ggplot(
+  plot_rc_vs_perf_linear = ggplot(
     RC_perf_sub,
-    aes(x = best_test_score, y = log10(RC_value + eps), color = learner)
+    aes(x = best_test_score, y = RC_value, color = learner)
   ) +
     geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
     labs(
-      title = paste0("Rashomon Capacity vs Best Test Performance (", t, ")"),
+      title = paste0("Rashomon Capacity vs Best Test Performance (", t, ", linear scale)"),
       subtitle = paste0("Performance measure: ", score_label),
       x = "Best test score in set (lower is better)",
-      y = "log10(RC)",
+      y = "RC",
       color = "Learner",
       shape = "Set Method"
     ) +
@@ -192,8 +192,38 @@ for (t in tasks_rc) {
     )
   
   ggsave(
-    filename = sprintf("figures/RC_vs_bestperf_%s.png", t),
-    plot = plot_rc_vs_perf,
+    filename = sprintf("figures/RC_vs_bestperf_linear_%s.png", t),
+    plot = plot_rc_vs_perf_linear,
+    width = 7,
+    height = 5
+  )
+  
+  RC_perf_sub_log = RC_perf_sub %>%
+    mutate(RC_value_plot = ifelse(RC_value <= 0, eps, RC_value))
+  
+  plot_rc_vs_perf_log = ggplot(
+    RC_perf_sub_log,
+    aes(x = best_test_score, y = RC_value_plot, color = learner)
+  ) +
+    geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
+    scale_y_log10(labels = scales::label_number()) +
+    labs(
+      title = paste0("Rashomon Capacity vs Best Test Performance (", t, ", log scale)"),
+      subtitle = paste0("Performance measure: ", score_label),
+      x = "Best test score in set (lower is better)",
+      y = "RC (log-scaled axis)",
+      color = "Learner",
+      shape = "Set Method"
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(
+      legend.position = "bottom",
+      strip.text = element_text(face = "bold")
+    )
+  
+  ggsave(
+    filename = sprintf("figures/RC_vs_bestperf_log_%s.png", t),
+    plot = plot_rc_vs_perf_log,
     width = 7,
     height = 5
   )
