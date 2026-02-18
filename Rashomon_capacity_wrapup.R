@@ -126,16 +126,32 @@ ggsave("figures/RC_values_CSlearner_comparison.png", plot2, width = 10, height =
 load("data/results_modelperformances_TreeFARMS.RData")
 load("data/results_modelperformances.RData")
 
-if (!("RS_method" %in% names(res_dt))) res_dt$RS_method = "CASHomon"
-if (!("learner_semantic" %in% names(res_dt))) res_dt$learner_semantic = res_dt$learner
-if (!("RS_method" %in% names(res_perf_TreeFARMS))) res_perf_TreeFARMS$RS_method = "TreeFARMS"
-if (!("learner_semantic" %in% names(res_perf_TreeFARMS))) res_perf_TreeFARMS$learner_semantic = "gosdt"
+# Standardize performance data BEFORE merging:
+# - non-TreeFARMS results come from CASHomon and keep their learner labels
+# - TreeFARMS results are assigned learner = "gosdt"
+MP_cashomon = res_dt %>%
+  transmute(
+    task,
+    score,
+    test.score,
+    learner = trimws(as.character(learner)),
+    RS_method = "CASHomon"
+  )
 
-MP_cashomon = res_dt
-MP_treefarms = res_perf_TreeFARMS
-MP = rbind(MP_cashomon, MP_treefarms, fill = TRUE)
-MP = MP %>%
-  mutate(learner_key = tolower(trimws(as.character(learner_semantic))))
+MP_treefarms = res_perf_TreeFARMS %>%
+  transmute(
+    task,
+    score,
+    test.score,
+    learner = "gosdt",
+    RS_method = "TreeFARMS"
+  )
+
+MP = rbind(MP_cashomon, MP_treefarms, fill = TRUE) %>%
+  mutate(
+    learner_key = tolower(learner),
+    RS_method = trimws(as.character(RS_method))
+  )
 
 # Best test performance in each method-specific Rashomon set
 MP_best = MP %>%
@@ -146,10 +162,9 @@ RC_sets = RC %>%
   filter(RS.algo %in% c("CASHomon", "TreeFARMS")) %>%
   transmute(
     task = taskname,
-    learner_join = ifelse(RS.algo == "TreeFARMS", "gosdt", learnername),
-    learner_plot = ifelse(RS.algo == "TreeFARMS", "TreeFARMS", learnername),
-    learner_key = tolower(trimws(as.character(learner_join))),
-    RS_method = RS.algo,
+    learner = trimws(as.character(ifelse(RS.algo == "TreeFARMS", "gosdt", learnername))),
+    learner_key = tolower(learner),
+    RS_method = trimws(as.character(RS.algo)),
     RC_value = pred.mult
   )
 
@@ -162,8 +177,8 @@ RC_perf = RC_sets %>%
 RC_perf_unmatched = RC_sets %>%
   anti_join(MP_best, by = c("task", "learner_key", "RS_method"))
 if (nrow(RC_perf_unmatched) > 0) {
-  message("Unmatched RC sets (task, learner_join, learner_plot, RS_method):")
-  print(unique(RC_perf_unmatched[, c("task", "learner_join", "learner_plot", "RS_method")]))
+  message("Unmatched RC sets (task, learner, RS_method):")
+  print(unique(RC_perf_unmatched[, c("task", "learner", "RS_method")]))
 }
 
 eps = 1e-12
@@ -176,9 +191,10 @@ for (t in tasks_rc) {
   
   plot_rc_vs_perf_linear = ggplot(
     RC_perf_sub,
-    aes(x = best_test_score, y = RC_value, color = learner_plot)
+    aes(x = best_test_score, y = RC_value, color = learner)
   ) +
     geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
+    scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17)) +
     labs(
       title = paste0("Rashomon Capacity vs Best Test Performance (", t, ", linear scale)"),
       subtitle = paste0("Performance measure: ", score_label),
@@ -205,9 +221,10 @@ for (t in tasks_rc) {
   
   plot_rc_vs_perf_log = ggplot(
     RC_perf_sub_log,
-    aes(x = best_test_score, y = RC_value_plot, color = learner_plot)
+    aes(x = best_test_score, y = RC_value_plot, color = learner)
   ) +
     geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
+    scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17)) +
     scale_y_log10(labels = scales::label_number()) +
     labs(
       title = paste0("Rashomon Capacity vs Best Test Performance (", t, ", log scale)"),
