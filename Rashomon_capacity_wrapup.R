@@ -115,3 +115,94 @@ plot2 = ggplot(RC_CS_pw_long, aes(x = Learner, y = RC_Value, fill = Learner)) +
   )
 
 ggsave("figures/RC_values_CSlearner_comparison.png", plot2, width = 10, height = 10)
+
+
+## RC vs best performance per Rashomon set --------------------------------------
+# Naming semantics:
+# - RS.algo = set-construction algorithm (TreeFARMS or CASHomon)
+# - TreeFARMS applies to learner "gosdt" only
+# - CASHomon applies to several learners; learner "global" is the pooled setting
+
+load("data/results_modelperformances_TreeFARMS.RData")
+load("data/results_modelperformances.RData")
+
+MP_cashomon = res_dt %>% mutate(RS_method = "CASHomon")
+MP_treefarms = res_perf_TreeFARMS %>% mutate(RS_method = "TreeFARMS")
+MP = rbind(MP_cashomon, MP_treefarms, fill = TRUE)
+
+# Best test performance in each method-specific Rashomon set
+MP_best = MP %>%
+  group_by(task, learner, score, RS_method) %>%
+  summarize(best_test_score = min(test.score, na.rm = TRUE), .groups = "drop")
+
+RC_sets = RC %>%
+  filter(RS.algo %in% c("CASHomon", "TreeFARMS")) %>%
+  transmute(
+    task = taskname,
+    learner = ifelse(RS.algo == "TreeFARMS", "gosdt", learnername),
+    RS_method = RS.algo,
+    RC_value = pred.mult
+  ) %>%
+  # No performance object exists for the pooled "global" set.
+  filter(learner != "global")
+
+# Join on task + learner + set-construction method
+RC_perf = RC_sets %>%
+  inner_join(MP_best, by = c("task", "learner", "RS_method")) %>%
+  filter(is.finite(RC_value), is.finite(best_test_score))
+
+# Quick diagnostic: which RC sets have no matching performance entry
+RC_perf_unmatched = RC_sets %>%
+  anti_join(MP_best, by = c("task", "learner", "RS_method"))
+if (nrow(RC_perf_unmatched) > 0) {
+  message("Unmatched RC sets (task, learner, RS_method):")
+  print(unique(RC_perf_unmatched[, c("task", "learner", "RS_method")]))
+}
+
+# Pareto-like frontier per task/score:
+# minimize x (test score), maximize y (RC)
+RC_perf_frontier = RC_perf %>%
+  arrange(task, score, best_test_score) %>%
+  group_by(task, score) %>%
+  mutate(is_frontier = RC_value >= cummax(RC_value)) %>%
+  filter(is_frontier) %>%
+  ungroup()
+
+eps = 1e-12
+
+plot_rc_vs_perf = ggplot(
+  RC_perf,
+  aes(x = best_test_score, y = log10(RC_value + eps), color = learner)
+) +
+  geom_point(aes(shape = RS_method), size = 2.7, alpha = 0.9) +
+  geom_line(
+    data = RC_perf_frontier,
+    aes(x = best_test_score, y = log10(RC_value + eps), group = interaction(task, score)),
+    color = "black",
+    inherit.aes = FALSE
+  ) +
+  facet_grid(score ~ task, scales = "free_x") +
+  labs(
+    title = "Rashomon Capacity vs Best Test Performance (per learner set)",
+    x = "Best test score in set (lower is better)",
+    y = "log10(RC)",
+    color = "Learner",
+    shape = "Set Method"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold")
+  )
+
+ggsave("figures/RC_vs_bestperf_pareto.png", plot_rc_vs_perf, width = 12, height = 7)
+
+RC_perf_corr = RC_perf %>%
+  group_by(score) %>%
+  summarize(
+    n = n(),
+    spearman_rho = cor(best_test_score, RC_value, method = "spearman", use = "complete.obs"),
+    .groups = "drop"
+  )
+
+print(RC_perf_corr)
