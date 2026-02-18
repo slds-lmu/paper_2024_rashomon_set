@@ -205,7 +205,7 @@ for (t in tasks_rc) {
     ) +
     theme_minimal(base_size = 16) +
     theme(
-      legend.position = "right",
+      legend.position = "none",
       plot.title = element_text(size = 17, face = "bold"),
       plot.subtitle = element_text(size = 14),
       axis.title = element_text(size = 15),
@@ -242,7 +242,7 @@ for (t in tasks_rc) {
     ) +
     theme_minimal(base_size = 16) +
     theme(
-      legend.position = "right",
+      legend.position = "none",
       plot.title = element_text(size = 17, face = "bold"),
       plot.subtitle = element_text(size = 14),
       axis.title = element_text(size = 15),
@@ -259,6 +259,34 @@ for (t in tasks_rc) {
     height = 5.5
   )
 }
+
+# Shared legend for all RC-vs-performance plots
+legend_data = RC_perf %>%
+  select(learner, RS_method) %>%
+  distinct() %>%
+  mutate(x = 1, y = 1)
+
+plot_rc_vs_perf_legend = ggplot(
+  legend_data,
+  aes(x = x, y = y, color = learner, shape = RS_method)
+) +
+  geom_point(size = 3.2, alpha = 0.95) +
+  scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17)) +
+  labs(color = "Learner", shape = "Method") +
+  theme_void(base_size = 16) +
+  theme(
+    legend.position = "center",
+    legend.box = "vertical",
+    legend.title = element_text(size = 15),
+    legend.text = element_text(size = 13)
+  )
+
+ggsave(
+  filename = "figures/RC_vs_bestperf_legend.png",
+  plot = plot_rc_vs_perf_legend,
+  width = 4.5,
+  height = 4.5
+)
 
 RC_perf_corr = RC_perf %>%
   group_by(score) %>%
