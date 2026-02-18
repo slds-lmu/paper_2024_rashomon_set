@@ -196,24 +196,24 @@ for (t in tasks_rc) {
     geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
     scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17)) +
     labs(
-      title = paste0("Rashomon Capacity vs Best Test Performance (", t, ", linear scale)"),
-      subtitle = paste0("Performance measure: ", score_label),
-      x = "Best test score in set (lower is better)",
+      title = paste0("Task: ", t, " (linear)"),
+      subtitle = paste0("Score: ", score_label),
+      x = "Best score (lower is better)",
       y = "RC",
       color = "Learner",
-      shape = "Set Method"
+      shape = "Method"
     ) +
     theme_minimal(base_size = 13) +
     theme(
-      legend.position = "bottom",
+      legend.position = "right",
       strip.text = element_text(face = "bold")
     )
   
   ggsave(
     filename = sprintf("figures/RC_vs_bestperf_linear_%s.png", t),
     plot = plot_rc_vs_perf_linear,
-    width = 7,
-    height = 5
+    width = 8,
+    height = 5.5
   )
   
   RC_perf_sub_log = RC_perf_sub %>%
@@ -227,24 +227,24 @@ for (t in tasks_rc) {
     scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17)) +
     scale_y_log10(labels = scales::label_number()) +
     labs(
-      title = paste0("Rashomon Capacity vs Best Test Performance (", t, ", log scale)"),
-      subtitle = paste0("Performance measure: ", score_label),
-      x = "Best test score in set (lower is better)",
-      y = "RC (log-scaled axis)",
+      title = paste0("Task: ", t, " (log)"),
+      subtitle = paste0("Score: ", score_label),
+      x = "Best score (lower is better)",
+      y = "RC (log axis)",
       color = "Learner",
-      shape = "Set Method"
+      shape = "Method"
     ) +
     theme_minimal(base_size = 13) +
     theme(
-      legend.position = "bottom",
+      legend.position = "right",
       strip.text = element_text(face = "bold")
     )
   
   ggsave(
     filename = sprintf("figures/RC_vs_bestperf_log_%s.png", t),
     plot = plot_rc_vs_perf_log,
-    width = 7,
-    height = 5
+    width = 8,
+    height = 5.5
   )
 }
 
