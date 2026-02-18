@@ -260,32 +260,46 @@ for (t in tasks_rc) {
   )
 }
 
-# Shared legend for all RC-vs-performance plots
-legend_data = RC_perf %>%
-  select(learner, RS_method) %>%
-  distinct() %>%
-  mutate(x = 1, y = 1)
+# Shared key figure for all RC-vs-performance plots
+learners = sort(unique(RC_perf$learner))
+methods = c("CASHomon", "TreeFARMS")
+n_rows = max(length(learners), length(methods))
 
-plot_rc_vs_perf_legend = ggplot(
-  legend_data,
-  aes(x = x, y = y, color = learner, shape = RS_method)
-) +
-  geom_point(size = 3.2, alpha = 0.95) +
-  scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17)) +
-  labs(color = "Learner", shape = "Method") +
+learner_key = data.frame(
+  label = learners,
+  x = 1,
+  y = n_rows:1
+)
+
+method_key = data.frame(
+  label = methods,
+  x = 3.2,
+  y = n_rows:(n_rows - length(methods) + 1)
+)
+
+plot_rc_vs_perf_legend = ggplot() +
+  annotate("text", x = 1, y = n_rows + 1, label = "Learner", hjust = 0, fontface = "bold", size = 5) +
+  annotate("text", x = 3.2, y = n_rows + 1, label = "Method", hjust = 0, fontface = "bold", size = 5) +
+  geom_point(data = learner_key, aes(x = x, y = y, color = label), size = 3.4) +
+  geom_text(data = learner_key, aes(x = x + 0.18, y = y, label = label, color = label), hjust = 0, size = 4.5, show.legend = FALSE) +
+  geom_point(data = method_key, aes(x = x, y = y, shape = label), size = 3.6, color = "black") +
+  geom_text(data = method_key, aes(x = x + 0.18, y = y, label = label), hjust = 0, size = 4.5, color = "black") +
+  scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17), guide = "none") +
+  coord_cartesian(
+    xlim = c(0.7, 4.8),
+    ylim = c(0.5, n_rows + 1.3),
+    clip = "off"
+  ) +
   theme_void(base_size = 16) +
   theme(
-    legend.position = "center",
-    legend.box = "vertical",
-    legend.title = element_text(size = 15),
-    legend.text = element_text(size = 13)
+    plot.margin = margin(t = 10, r = 30, b = 10, l = 10)
   )
 
 ggsave(
   filename = "figures/RC_vs_bestperf_legend.png",
   plot = plot_rc_vs_perf_legend,
-  width = 4.5,
-  height = 4.5
+  width = 8,
+  height = 5.5
 )
 
 RC_perf_corr = RC_perf %>%
