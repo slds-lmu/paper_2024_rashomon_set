@@ -24,7 +24,7 @@ str(MP)
 head(MP)
 
 
-## Boxplots of predictive performance per task ---------------------------------
+## Violin plots of predictive performance per task ------------------------------
 
 # Create consistent color palette for all learners
 all_learners_unique = sort(unique(MP$learner))
@@ -38,16 +38,18 @@ tasks = sort(unique(MP$task))
 for (t in tasks) {
   MP_sub = MP[task == t]
   
-  # Order learners: global at top, rest alphabetically, then TreeFARMS, gosdt, tree at bottom
+  # Keep only the selected learners
   all_learners = unique(MP_sub$learner)
   global = all_learners[grepl("global", all_learners, ignore.case = TRUE)]
   treefarms = all_learners[grepl("TreeFARMS", all_learners, ignore.case = TRUE)]
   gosdt = all_learners[grepl("gosdt", all_learners, ignore.case = TRUE)]
   tree = all_learners[grepl("^tree$", all_learners, ignore.case = TRUE)]
-  rest = setdiff(all_learners, c(global, treefarms, gosdt, tree))
-  rest = sort(rest)
+  selected_learners = unique(c(global, gosdt, tree, treefarms))
+  MP_sub = MP_sub[learner %in% selected_learners]
+
+  if (nrow(MP_sub) == 0) next
   
-  learner_order = c(global, rest, gosdt, tree, treefarms)
+  learner_order = c(global, gosdt, tree, treefarms)
   
   MP_sub$learner = factor(MP_sub$learner, levels = learner_order)
   
@@ -56,15 +58,13 @@ for (t in tasks) {
     coord_flip() +
     scale_fill_manual(values = learner_colors, drop = FALSE) +
     labs(
-      title = paste("Predictive performance per learner for task", t),
       x = "Learner",
       y = ifelse(unique(MP_sub$score)[1] == "rmse", "RMSE", "Brier score"),
       fill = "Learner"
     ) +
     theme_minimal(base_size = 14) +
     theme(
-      legend.position = "none",
-      plot.title = element_text(hjust = 0.5)
+      legend.position = "none"
     )
   
   ggsave(
@@ -91,7 +91,7 @@ for (t in tasks) {
 # head(res_dt_train)
 #
 #
-# ## Boxplots of predictive performance per task ---------------------------------
+# ## Violin plots of predictive performance per task ------------------------------
 #
 # # Create consistent color palette for all learners
 # all_learners_unique = sort(unique(res_dt_train$learner))
@@ -105,16 +105,18 @@ for (t in tasks) {
 # for (t in tasks) {
 #   MP_sub = res_dt_train[task == t]
 #   
-#   # Order learners: global at top, rest alphabetically, then TreeFARMS, gosdt, tree at bottom
+#   # Keep only the selected learners
 #   all_learners = unique(MP_sub$learner)
 #   global = all_learners[grepl("global", all_learners, ignore.case = TRUE)]
 #   treefarms = all_learners[grepl("TreeFARMS", all_learners, ignore.case = TRUE)]
 #   gosdt = all_learners[grepl("gosdt", all_learners, ignore.case = TRUE)]
 #   tree = all_learners[grepl("^tree$", all_learners, ignore.case = TRUE)]
-#   rest = setdiff(all_learners, c(global, treefarms, gosdt, tree))
-#   rest = sort(rest)
+#   selected_learners = unique(c(global, gosdt, tree, treefarms))
+#   MP_sub = MP_sub[learner %in% selected_learners]
+#
+#   if (nrow(MP_sub) == 0) next
 #   
-#   learner_order = c(global, rest, gosdt, tree, treefarms)
+#   learner_order = c(global, gosdt, tree, treefarms)
 #   
 #   MP_sub$learner = factor(MP_sub$learner, levels = learner_order)
 #   
@@ -123,15 +125,13 @@ for (t in tasks) {
 #     coord_flip() +
 #     scale_fill_manual(values = learner_colors, drop = FALSE) +
 #     labs(
-#       title = paste("Predictive performance per learner for task", t, "(training data)"),
 #       x = "Learner",
 #       y = ifelse(unique(MP_sub$score)[1] == "rmse", "RMSE", "Brier score"),
 #       fill = "Learner"
 #     ) +
 #     theme_minimal(base_size = 14) +
 #     theme(
-#       legend.position = "none",
-#       plot.title = element_text(hjust = 0.5)
+#       legend.position = "none"
 #     )
 #   
 #   ggsave(
