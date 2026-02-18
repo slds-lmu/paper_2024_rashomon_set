@@ -126,13 +126,18 @@ ggsave("figures/RC_values_CSlearner_comparison.png", plot2, width = 10, height =
 load("data/results_modelperformances_TreeFARMS.RData")
 load("data/results_modelperformances.RData")
 
-MP_cashomon = res_dt %>% mutate(RS_method = "CASHomon")
-MP_treefarms = res_perf_TreeFARMS %>% mutate(RS_method = "TreeFARMS")
+if (!("RS_method" %in% names(res_dt))) res_dt$RS_method = "CASHomon"
+if (!("learner_semantic" %in% names(res_dt))) res_dt$learner_semantic = res_dt$learner
+if (!("RS_method" %in% names(res_perf_TreeFARMS))) res_perf_TreeFARMS$RS_method = "TreeFARMS"
+if (!("learner_semantic" %in% names(res_perf_TreeFARMS))) res_perf_TreeFARMS$learner_semantic = "gosdt"
+
+MP_cashomon = res_dt
+MP_treefarms = res_perf_TreeFARMS
 MP = rbind(MP_cashomon, MP_treefarms, fill = TRUE)
 
 # Best test performance in each method-specific Rashomon set
 MP_best = MP %>%
-  group_by(task, learner, score, RS_method) %>%
+  group_by(task, learner_semantic, score, RS_method) %>%
   summarize(best_test_score = min(test.score, na.rm = TRUE), .groups = "drop")
 
 RC_sets = RC %>%
@@ -148,12 +153,12 @@ RC_sets = RC %>%
 
 # Join on task + learner + set-construction method
 RC_perf = RC_sets %>%
-  inner_join(MP_best, by = c("task", "learner", "RS_method")) %>%
+  inner_join(MP_best, by = c("task", "learner" = "learner_semantic", "RS_method")) %>%
   filter(is.finite(RC_value), is.finite(best_test_score))
 
 # Quick diagnostic: which RC sets have no matching performance entry
 RC_perf_unmatched = RC_sets %>%
-  anti_join(MP_best, by = c("task", "learner", "RS_method"))
+  anti_join(MP_best, by = c("task", "learner" = "learner_semantic", "RS_method"))
 if (nrow(RC_perf_unmatched) > 0) {
   message("Unmatched RC sets (task, learner, RS_method):")
   print(unique(RC_perf_unmatched[, c("task", "learner", "RS_method")]))
