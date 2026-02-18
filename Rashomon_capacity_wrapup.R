@@ -134,34 +134,36 @@ if (!("learner_semantic" %in% names(res_perf_TreeFARMS))) res_perf_TreeFARMS$lea
 MP_cashomon = res_dt
 MP_treefarms = res_perf_TreeFARMS
 MP = rbind(MP_cashomon, MP_treefarms, fill = TRUE)
+MP = MP %>%
+  mutate(learner_key = tolower(trimws(as.character(learner_semantic))))
 
 # Best test performance in each method-specific Rashomon set
 MP_best = MP %>%
-  group_by(task, learner_semantic, score, RS_method) %>%
+  group_by(task, learner_key, score, RS_method) %>%
   summarize(best_test_score = min(test.score, na.rm = TRUE), .groups = "drop")
 
 RC_sets = RC %>%
   filter(RS.algo %in% c("CASHomon", "TreeFARMS")) %>%
   transmute(
     task = taskname,
-    learner = ifelse(RS.algo == "TreeFARMS", "gosdt", learnername),
+    learner_join = ifelse(RS.algo == "TreeFARMS", "gosdt", learnername),
+    learner_plot = ifelse(RS.algo == "TreeFARMS", "TreeFARMS", learnername),
+    learner_key = tolower(trimws(as.character(learner_join))),
     RS_method = RS.algo,
     RC_value = pred.mult
-  ) %>%
-  # No performance object exists for the pooled "global" set.
-  filter(learner != "global")
+  )
 
 # Join on task + learner + set-construction method
 RC_perf = RC_sets %>%
-  inner_join(MP_best, by = c("task", "learner" = "learner_semantic", "RS_method")) %>%
+  inner_join(MP_best, by = c("task", "learner_key", "RS_method")) %>%
   filter(is.finite(RC_value), is.finite(best_test_score))
 
 # Quick diagnostic: which RC sets have no matching performance entry
 RC_perf_unmatched = RC_sets %>%
-  anti_join(MP_best, by = c("task", "learner" = "learner_semantic", "RS_method"))
+  anti_join(MP_best, by = c("task", "learner_key", "RS_method"))
 if (nrow(RC_perf_unmatched) > 0) {
-  message("Unmatched RC sets (task, learner, RS_method):")
-  print(unique(RC_perf_unmatched[, c("task", "learner", "RS_method")]))
+  message("Unmatched RC sets (task, learner_join, learner_plot, RS_method):")
+  print(unique(RC_perf_unmatched[, c("task", "learner_join", "learner_plot", "RS_method")]))
 }
 
 eps = 1e-12
@@ -174,7 +176,7 @@ for (t in tasks_rc) {
   
   plot_rc_vs_perf_linear = ggplot(
     RC_perf_sub,
-    aes(x = best_test_score, y = RC_value, color = learner)
+    aes(x = best_test_score, y = RC_value, color = learner_plot)
   ) +
     geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
     labs(
@@ -203,7 +205,7 @@ for (t in tasks_rc) {
   
   plot_rc_vs_perf_log = ggplot(
     RC_perf_sub_log,
-    aes(x = best_test_score, y = RC_value_plot, color = learner)
+    aes(x = best_test_score, y = RC_value_plot, color = learner_plot)
   ) +
     geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
     scale_y_log10(labels = scales::label_number()) +
