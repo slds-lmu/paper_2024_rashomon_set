@@ -277,6 +277,16 @@ for(task.key in task.keys){
     theme(legend.text = element_text(size=13)) +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
 
+  # Additional plot: Violin plot
+  plot_violin = ggplot(vic_RS_long[[task.key]]) +
+    geom_violin(aes(x = feature, y = Value), fill = "gray", color = "gray30",
+                trim = FALSE) +
+    coord_flip() +
+    labs(y = "Importance", x = "Feature", fill = "Model Class",
+         title = paste("PFI values (max importance = 1), violin:", task.key)) +
+    theme_minimal(base_size = 15) +
+    theme(legend.text = element_text(size=13))
+
   # Plot 4: Pairwise Plots
   lowerfun <- function(data,mapping){
     ggplot(data = data, mapping = mapping)+
@@ -286,7 +296,7 @@ for(task.key in task.keys){
       scale_y_continuous(limits = c(min(vic_RS_wide[[task.key]][, -c(1,2,3,4)]),
                                     max(vic_RS_wide[[task.key]][, -c(1,2,3,4)])))
   }
-  plot4 = ggpairs(vic_RS_wide[[task.key]][, -c(1,2,3)],
+  plot_pairwise = ggpairs(vic_RS_wide[[task.key]][, -c(1,2,3)],
                   lower = list(continuous = wrap(lowerfun)),
                   upper  = list(continuous = "blank"),
                   diag  = list(continuous = "blankDiag"),
@@ -310,7 +320,7 @@ for(task.key in task.keys){
       scale_y_continuous(limits = c(min(vic_RS_wide[[task.key]][, -c(1,2,3,4)]),
                                     max(vic_RS_wide[[task.key]][, -c(1,2,3,4)])))
   }
-  plot5 = ggpairs(vic_RS_wide[[task.key]][c(top4_features$feature)],
+  plot_pairwise_top4 = ggpairs(vic_RS_wide[[task.key]][c(top4_features$feature)],
                   lower = list(continuous = wrap(lowerfun)),
                   upper  = list(continuous = "blank"),
                   diag  = list(continuous = "blankDiag"),
@@ -326,8 +336,9 @@ for(task.key in task.keys){
   plots[[task.key]][["RS_performance_scatter_plot"]] = plot1
   plots[[task.key]][["RS_scatter_plot"]] = plot2
   plots[[task.key]][["RS_box_plot"]] = plot3
-  plots[[task.key]][["RS_pairwise_comparison"]] = gpairs_lower(plot4)
-  plots[[task.key]][["RS_pairwise_comparison_top4_features"]] = gpairs_lower(plot5)
+  plots[[task.key]][["RS_violin_plot"]] = plot_violin
+  plots[[task.key]][["RS_pairwise_comparison"]] = gpairs_lower(plot_pairwise)
+  plots[[task.key]][["RS_pairwise_comparison_top4_features"]] = gpairs_lower(plot_pairwise_top4)
 }
 
 #### vic normalized #### 
@@ -464,9 +475,20 @@ for(task.key in task.keys){
     theme(legend.text = element_text(size=13)) +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
 
+  # Plot 4: Violin plot
+  plot_violin = ggplot(vic_RS_scaled_long[[task.key]]) +
+    geom_violin(aes(x = feature, y = Value), fill = "gray", color = "gray30",
+                trim = FALSE) +
+    coord_flip() +
+    labs(y = "Importance", x = "Feature", fill = "Model Class",
+         title = paste("PFI values (max importance = 1), violin:", task.key)) +
+    theme_minimal(base_size = 15) +
+    theme(legend.text = element_text(size=13))
+
   plots_scaled[[task.key]][["RS_performance_scatter_plot"]] = plot1
   plots_scaled[[task.key]][["RS_scatter_plot"]] = plot2
   plots_scaled[[task.key]][["RS_box_plot"]] = plot3
+  plots_scaled[[task.key]][["RS_violin_plot"]] = plot_violin
 }
 
 
@@ -495,6 +517,11 @@ for(task.key in task.keys){
   ggsave(name, plots[[task.key]][["RS_box_plot"]], width = 10, height = 5)
   name = paste0("figures/", task.key, "_pfi_RS_boxPlot_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_box_plot"]], width = 10, height = 5)
+  # violin plot
+  name = paste0("figures/", task.key, "_pfi_RS_violinPlot.png")
+  ggsave(name, plots[[task.key]][["RS_violin_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_RS_violinPlot_scaled.png")
+  ggsave(name, plots_scaled[[task.key]][["RS_violin_plot"]], width = 10, height = 5)
   # pairwise
   name = paste0("figures/", task.key, "_pfi_RS_pairwise.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison"]], width = 12.5, height = 6.25)
