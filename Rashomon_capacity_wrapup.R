@@ -205,14 +205,7 @@ for (t in tasks_rc) {
     ) +
     theme_minimal(base_size = 16) +
     theme(
-      legend.position = "none",
-      plot.title = element_text(size = 17, face = "bold"),
-      plot.subtitle = element_text(size = 14),
-      axis.title = element_text(size = 15),
-      axis.text = element_text(size = 13),
-      legend.title = element_text(size = 14),
-      legend.text = element_text(size = 12),
-      strip.text = element_text(face = "bold", size = 14)
+      legend.position = "none"
     )
   
   ggsave(
@@ -242,14 +235,7 @@ for (t in tasks_rc) {
     ) +
     theme_minimal(base_size = 16) +
     theme(
-      legend.position = "none",
-      plot.title = element_text(size = 17, face = "bold"),
-      plot.subtitle = element_text(size = 14),
-      axis.title = element_text(size = 15),
-      axis.text = element_text(size = 13),
-      legend.title = element_text(size = 14),
-      legend.text = element_text(size = 12),
-      strip.text = element_text(face = "bold", size = 14)
+      legend.position = "none"
     )
   
   ggsave(
@@ -263,30 +249,35 @@ for (t in tasks_rc) {
 # Shared key figure for all RC-vs-performance plots
 learners = sort(unique(RC_perf$learner))
 methods = c("CASHomon", "TreeFARMS")
-n_rows = max(length(learners), length(methods))
+n_learner_rows = ceiling(length(learners) / 2)
+n_rows = max(n_learner_rows, length(methods))
 
-learner_key = data.frame(
-  label = learners,
-  x = 1,
-  y = n_rows:1
-)
+learner_key = data.frame(label = learners) %>%
+  mutate(
+    idx = row_number(),
+    col = ((idx - 1) %/% n_learner_rows) + 1,
+    row = ((idx - 1) %% n_learner_rows) + 1,
+    x = 1 + (col - 1) * 1.5,
+    y = n_learner_rows - row + 1
+  )
 
 method_key = data.frame(
   label = methods,
-  x = 3.2,
+  x = 4.4,
   y = n_rows:(n_rows - length(methods) + 1)
 )
 
 plot_rc_vs_perf_legend = ggplot() +
   annotate("text", x = 1, y = n_rows + 1, label = "Learner", hjust = 0, fontface = "bold", size = 5) +
-  annotate("text", x = 3.2, y = n_rows + 1, label = "Method", hjust = 0, fontface = "bold", size = 5) +
-  geom_point(data = learner_key, aes(x = x, y = y, color = label), size = 3.4) +
+  annotate("text", x = 4.4, y = n_rows + 1, label = "Method", hjust = 0, fontface = "bold", size = 5) +
+  geom_point(data = learner_key, aes(x = x, y = y, color = label), size = 3.4, show.legend = FALSE) +
   geom_text(data = learner_key, aes(x = x + 0.18, y = y, label = label, color = label), hjust = 0, size = 4.5, show.legend = FALSE) +
-  geom_point(data = method_key, aes(x = x, y = y, shape = label), size = 3.6, color = "black") +
+  geom_point(data = method_key, aes(x = x, y = y, shape = label), size = 3.6, color = "black", show.legend = FALSE) +
   geom_text(data = method_key, aes(x = x + 0.18, y = y, label = label), hjust = 0, size = 4.5, color = "black") +
   scale_shape_manual(values = c("CASHomon" = 16, "TreeFARMS" = 17), guide = "none") +
+  guides(color = "none", shape = "none") +
   coord_cartesian(
-    xlim = c(0.7, 4.8),
+    xlim = c(0.7, 5.8),
     ylim = c(0.5, n_rows + 1.3),
     clip = "off"
   ) +
