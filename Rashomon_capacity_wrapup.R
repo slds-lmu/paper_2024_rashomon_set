@@ -164,43 +164,40 @@ if (nrow(RC_perf_unmatched) > 0) {
   print(unique(RC_perf_unmatched[, c("task", "learner", "RS_method")]))
 }
 
-# Pareto-like frontier per task/score:
-# minimize x (test score), maximize y (RC)
-RC_perf_frontier = RC_perf %>%
-  arrange(task, score, best_test_score) %>%
-  group_by(task, score) %>%
-  mutate(is_frontier = RC_value >= cummax(RC_value)) %>%
-  filter(is_frontier) %>%
-  ungroup()
-
 eps = 1e-12
 
-plot_rc_vs_perf = ggplot(
-  RC_perf,
-  aes(x = best_test_score, y = log10(RC_value + eps), color = learner)
-) +
-  geom_point(aes(shape = RS_method), size = 2.7, alpha = 0.9) +
-  geom_line(
-    data = RC_perf_frontier,
-    aes(x = best_test_score, y = log10(RC_value + eps), group = interaction(task, score)),
-    color = "black",
-    inherit.aes = FALSE
-  ) +
-  facet_grid(score ~ task, scales = "free_x") +
-  labs(
-    title = "Rashomon Capacity vs Best Test Performance (per learner set)",
-    x = "Best test score in set (lower is better)",
-    y = "log10(RC)",
-    color = "Learner",
-    shape = "Set Method"
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold")
-  )
+tasks_rc = sort(unique(RC_perf$task))
 
-ggsave("figures/RC_vs_bestperf_pareto.png", plot_rc_vs_perf, width = 12, height = 7)
+for (t in tasks_rc) {
+  RC_perf_sub = RC_perf %>% filter(task == t)
+  score_label = paste(sort(unique(RC_perf_sub$score)), collapse = ", ")
+  
+  plot_rc_vs_perf = ggplot(
+    RC_perf_sub,
+    aes(x = best_test_score, y = log10(RC_value + eps), color = learner)
+  ) +
+    geom_point(aes(shape = RS_method), size = 2.9, alpha = 0.9) +
+    labs(
+      title = paste0("Rashomon Capacity vs Best Test Performance (", t, ")"),
+      subtitle = paste0("Performance measure: ", score_label),
+      x = "Best test score in set (lower is better)",
+      y = "log10(RC)",
+      color = "Learner",
+      shape = "Set Method"
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(
+      legend.position = "bottom",
+      strip.text = element_text(face = "bold")
+    )
+  
+  ggsave(
+    filename = sprintf("figures/RC_vs_bestperf_%s.png", t),
+    plot = plot_rc_vs_perf,
+    width = 7,
+    height = 5
+  )
+}
 
 RC_perf_corr = RC_perf %>%
   group_by(score) %>%
