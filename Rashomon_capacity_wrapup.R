@@ -211,8 +211,8 @@ for (t in tasks_rc) {
   ggsave(
     filename = sprintf("figures/RC_vs_bestperf_linear_%s.png", t),
     plot = plot_rc_vs_perf_linear,
-    width = 8,
-    height = 5.5
+    width = 6,
+    height = 4
   )
   
   RC_perf_sub_log = RC_perf_sub %>%
@@ -241,8 +241,8 @@ for (t in tasks_rc) {
   ggsave(
     filename = sprintf("figures/RC_vs_bestperf_log_%s.png", t),
     plot = plot_rc_vs_perf_log,
-    width = 8,
-    height = 5.5
+    width = 6,
+    height = 4
   )
 }
 
@@ -289,8 +289,8 @@ plot_rc_vs_perf_legend = ggplot() +
 ggsave(
   filename = "figures/RC_vs_bestperf_legend.png",
   plot = plot_rc_vs_perf_legend,
-  width = 8,
-  height = 5.5
+  width = 6,
+  height = 4
 )
 
 RC_perf_corr = RC_perf %>%
