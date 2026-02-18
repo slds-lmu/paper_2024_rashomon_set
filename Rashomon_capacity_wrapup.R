@@ -203,10 +203,16 @@ for (t in tasks_rc) {
       color = "Learner",
       shape = "Method"
     ) +
-    theme_minimal(base_size = 13) +
+    theme_minimal(base_size = 16) +
     theme(
       legend.position = "right",
-      strip.text = element_text(face = "bold")
+      plot.title = element_text(size = 17, face = "bold"),
+      plot.subtitle = element_text(size = 14),
+      axis.title = element_text(size = 15),
+      axis.text = element_text(size = 13),
+      legend.title = element_text(size = 14),
+      legend.text = element_text(size = 12),
+      strip.text = element_text(face = "bold", size = 14)
     )
   
   ggsave(
@@ -234,10 +240,16 @@ for (t in tasks_rc) {
       color = "Learner",
       shape = "Method"
     ) +
-    theme_minimal(base_size = 13) +
+    theme_minimal(base_size = 16) +
     theme(
       legend.position = "right",
-      strip.text = element_text(face = "bold")
+      plot.title = element_text(size = 17, face = "bold"),
+      plot.subtitle = element_text(size = 14),
+      axis.title = element_text(size = 15),
+      axis.text = element_text(size = 13),
+      legend.title = element_text(size = 14),
+      legend.text = element_text(size = 12),
+      strip.text = element_text(face = "bold", size = 14)
     )
   
   ggsave(
