@@ -7,10 +7,10 @@ library(data.table)
 
 
 # writeable = TRUE only once !!!!
-# regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/CASHomon_PFIs",
+# regr = makeExperimentRegistry(file.dir = "/media/external/ewaldf/rashomon/PFI_values",
 #                               source = "init.R", packages = "iml"
 # )
-regr = loadRegistry("/media/external/ewaldf/CASHomon_PFIs", writeable = TRUE)
+regr = loadRegistry("/media/external/ewaldf/rashomon/PFI_values", writeable = TRUE)
 
 # Define Cluster-Configurations
 regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 5)
@@ -62,12 +62,15 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
   calculate_pfi = function(task, model, seed, perm.reps){
     set.seed(seed)
     X = task$data(cols = task$feature_names)
+    pfi = list()
     if(model$task_type == "regr"){
       y = task$data(cols = task$target_names)
       predictor = Predictor$new(model = model, data = X, y = y)
       # PFI via ratio (default). Alternative: compare = "difference"
-      FeatureImp$new(predictor, loss = "rmse", compare = "difference",
-                     n.repetitions = perm.reps)
+      pfi$diff = FeatureImp$new(predictor, loss = "rmse", compare = "difference",
+                                n.repetitions = perm.reps)
+      
+      pfi$ratio = FeatureImp$new(predictor, loss = "rmse", n.repetitions = perm.reps)
     } else if (model$task_type == "classif") {  # only binary targets
       y = task$data(cols = task$target_names)[[1]]
       y = ifelse(y == task$positive, 1, 0)
@@ -76,11 +79,13 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
         model$predict_newdata(newdata)$prob[,1]
       }
       predictor = Predictor$new(model = model, data = X, y = y, predict.function = predict_function_class)
-      FeatureImp$new(predictor, loss = "mse", compare = "difference",
-                     n.repetitions = perm.reps)
+      pfi$diff = FeatureImp$new(predictor, loss = "mse", compare = "difference",
+                                n.repetitions = perm.reps)
+      pfi$ratio = FeatureImp$new(predictor, loss = "mse", n.repetitions = perm.reps)
     } else {
       stop("Unsupported task type")
     }
+    return(pfi)
   }
 
   # Calculate VIC
@@ -106,33 +111,10 @@ waitForJobs()
 
 #### Extract results ###########################################################
 # writeable = TRUE only once !!!!
-regr = batchtools::loadRegistry("/media/external/ewaldf/CASHomon_PFIs", writeable = TRUE)
+regr = batchtools::loadRegistry("/media/external/ewaldf/rashomon/PFI_values", writeable = TRUE)
 # setDefaultRegistry(regr)
 
-pre_design = pre_design[count != 0,,]
-## save results per data set and learner
-save_results = function(ids, learnername){
-  list.pfi_tmp = list()
-  # save median importance and feature from batchtools results
-  list.pfi_tmp[[learnername]] = reduceResultsList(ids = ids, reg = regr, fun = function(x) {
-    tab = x$results
-    subset(tab, select = c(feature, importance))
-  })
-  # merge in one data.frame per data set > VIC
-  vic_tmp = data.frame(feature = list.pfi_tmp[[learnername]][[1]]$feature)
-  for(j in 1:length(ids)){
-    vic_tmp = merge(vic_tmp,
-                list.pfi_tmp[[learnername]][[j]][,c("feature","importance")],
-                by = "feature")
-    colnames(vic_tmp)[j+1] = paste0("pfi_", learnername, "_m", ids[j])
-  }
-
-  res.list = list()
-  res.list$list.pfi = list.pfi_tmp
-  res.list$vic = vic_tmp
-  return(res.list)
-}
-
+pre_design = pre_design[no.models != 0,,]
 job_table = getJobTable()
 # list.pfi = list()
 vic = list()
