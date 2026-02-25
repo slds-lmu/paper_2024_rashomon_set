@@ -5,6 +5,7 @@ library(xtable)
 library(tidyr)
 library(ggplot2)
 library(dplyr)
+library(ggbeeswarm)
 
 ## Load model performance results ----------------------------------------------
 
@@ -53,13 +54,20 @@ for (t in tasks) {
   
   MP_sub$learner = factor(MP_sub$learner, levels = learner_order)
   
-  p = ggplot(MP_sub, aes(x = learner, y = test.score, fill = learner)) +
-    geom_violin(alpha = 0.8, trim = FALSE) +
+  metric_name = unique(MP_sub$score)[1]
+  
+  p_violin = ggplot(MP_sub, aes(x = learner, y = test.score, fill = learner)) +
+    geom_violin(
+      alpha = 0.8,
+      trim = TRUE,
+      scale = "count",
+      adjust = 0.7
+    ) +
     coord_flip() +
     scale_fill_manual(values = learner_colors, drop = FALSE) +
     labs(
       x = "Learner",
-      y = ifelse(unique(MP_sub$score)[1] == "rmse", "RMSE", "Brier score"),
+      y = ifelse(metric_name == "rmse", "RMSE", "Brier score"),
       fill = "Learner"
     ) +
     theme_minimal(base_size = 14) +
@@ -69,7 +77,46 @@ for (t in tasks) {
   
   ggsave(
     filename = sprintf("figures/pred_perf_%s.png", t),
-    plot = p,
+    plot = p_violin,
+    width = 6,
+    height = 4
+  )
+  
+  p_beeswarm = ggplot(MP_sub, aes(x = test.score, y = learner, color = learner))
+  if ("geom_quasirandom" %in% getNamespaceExports("ggbeeswarm")) {
+    p_beeswarm = p_beeswarm +
+      ggbeeswarm::geom_quasirandom(
+        alpha = 0.7,
+        size = 1.6,
+        groupOnX = FALSE,
+        varwidth = TRUE
+      )
+  } else {
+    # Robust fallback for older ggbeeswarm versions.
+    p_beeswarm = p_beeswarm +
+      geom_jitter(
+        alpha = 0.7,
+        size = 1.6,
+        width = 0,
+        height = 0.15
+      )
+  }
+  
+  p_beeswarm = p_beeswarm +
+    scale_color_manual(values = learner_colors, drop = FALSE) +
+    labs(
+      x = ifelse(metric_name == "rmse", "RMSE", "Brier score"),
+      y = "Learner",
+      color = "Learner"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(
+      legend.position = "none"
+    )
+  
+  ggsave(
+    filename = sprintf("figures/pred_perf_beeswarm_%s.png", t),
+    plot = p_beeswarm,
     width = 6,
     height = 4
   )
