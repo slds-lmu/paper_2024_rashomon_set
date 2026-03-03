@@ -69,7 +69,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
       # PFI via ratio (default). Alternative: compare = "difference"
       pfi$diff = FeatureImp$new(predictor, loss = "rmse", compare = "difference",
                                 n.repetitions = perm.reps)
-      
+
       pfi$ratio = FeatureImp$new(predictor, loss = "rmse", n.repetitions = perm.reps)
     } else if (model$task_type == "classif") {  # only binary targets
       y = task$data(cols = task$target_names)[[1]]
@@ -125,10 +125,16 @@ for(i in 1:length(job_table$prob.pars)){
   taskname = job_table$prob.pars[[i]]$taskname
   learnername = job_table$algo.pars[[i]]$learnername
   model.no = job_table$algo.pars[[i]]$model.no
-  
+
   result = reduceResultsList(ids = i, reg = regr, fun = function(x) {
-    tab = x$results
-    subset(tab, select = c(feature, importance))
+    tab1 = x[[1]]$results
+    # tab2 = x[[2]]$results
+    # st1 =
+    subset(tab1, select = c(feature, importance))
+    # colnames(st1) = c("feature", "fi_diff")
+    # st2 = subset(tab2, select = c(feature, importance))
+    # colnames(st2) = c("feature", "fi_ratio")
+    # merge(st1, st2, by = "feature")
   })
 
   if(!(taskname %in% names(vic)) || dim(vic[[taskname]])[1] == 0){
@@ -145,7 +151,7 @@ for(i in 1:length(job_table$prob.pars)){
 
 # normalize VIC: max importance = 1
 vic_normalized = list()
-for(i in 1:length(pre_design$count)){
+for(i in 1:length(pre_design$no.models)){
   vic_normalized[[pre_design$rn[i]]] = vic[[pre_design$rn[i]]]
   names = names(vic[[pre_design$rn[i]]])
   max_per_model = apply(vic_normalized[[pre_design$rn[i]]][,-1], 2, max)

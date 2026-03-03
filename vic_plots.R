@@ -10,6 +10,7 @@ library(rlang)
 library(iml)
 library(corrplot)
 library(xtable)
+library(patchwork)
 
 
 ## General settings ############################################################
@@ -129,14 +130,38 @@ for(task.key in task.keys){
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_scaled_long[[task.key]]$PFI)
 
-  # Scatter-plot colored according to model class
-  plot_scatter = ggplot(vic_scaled_long[[task.key]], aes(x = Value, y = feature, color = learner)) +
+  # Scatter-plot colored according to model class (w/o global)
+  plot_scatter = ggplot(subset(vic_scaled_long[[task.key]], learner != "global"),
+                        aes(x = Value, y = feature, color = learner)) +
     geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
-    labs(x = "Importance", y = "Feature", color = "Model Class",
-         title = paste0("PFI values (", task.key, ", max importance = 1) colored by learner")) +
-    theme_minimal(base_size = 15) +
-    theme(legend.text = element_text(size = 13)) +
-    guides(color = guide_legend(override.aes = list(size = 8)))
+    labs(x = "Importance", y = "Feature",
+         color = "Model Class ") +
+    theme_minimal(base_size = 27) +
+    theme(legend.text = element_text(size = 20)) +
+    guides(color = guide_legend(override.aes = list(size = 7, alpha = 1)))
+
+  # Scatter-plot global
+  plot_scatter_global = ggplot(subset(vic_scaled_long[[task.key]], learner == "global"),
+                               aes(x = Value, y = feature)) +
+    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
+    labs(x = "Importance", y = "Feature") +
+    theme_minimal(base_size = 27) +
+    theme(legend.text = element_text(size = 20))
+
+  # Combine both scatter plots
+  p_right = plot_scatter +
+    theme(axis.title.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          legend.position = "bottom")
+
+  combined = plot_scatter_global + p_right +
+    plot_layout(widths = c(1, 1), guides = "collect") +
+    plot_annotation(
+      title = paste0("PFI values, task ", task.key, " (scaled)"),
+      theme = theme(plot.title = element_text(size = 27, hjust = 0.5))
+    ) &
+    theme(legend.position = "bottom")
 
   # Box plot
   plot_box = ggplot(vic_scaled_long[[task.key]]) +
@@ -158,6 +183,8 @@ for(task.key in task.keys){
 
   plots_scaled[[task.key]] = list()
   plots_scaled[[task.key]][["scatter_plot"]] = plot_scatter
+  plots_scaled[[task.key]][["scatter_plot_global"]] = plot_scatter_global
+  plots_scaled[[task.key]][["scatter_plot_combined"]] = combined
   plots_scaled[[task.key]][["box_plot"]] = plot_box
   plots_scaled[[task.key]][["violin_plot"]] = plot_violin
 }
@@ -170,6 +197,10 @@ for(task.key in task.keys){
   ggsave(name, plots[[task.key]][["scatter_plot"]], width = 10, height = 5)
   name = paste0("figures/", task.key, "_pfi_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_scatter_global_scaled.png")
+  ggsave(name, plots_scaled[[task.key]][["scatter_plot_global"]], width = 10, height = 5)
+  name = paste0("figures/", task.key, "_pfi_scatter_combined_scaled.png")
+  ggsave(name, plots_scaled[[task.key]][["scatter_plot_combined"]], width = 14, height = 8)
 
   # Boxplot
   name = paste0("figures/", task.key, "_pfi_boxPlot.png")
@@ -184,13 +215,13 @@ for(task.key in task.keys){
   ggsave(name, plots_scaled[[task.key]][["violin_plot"]], width = 10, height = 5)
 
   # Pairwise
-  name = paste0("figures/", task.key, "_pfi_pairwise.png")
-  ggsave(name, plots[[task.key]][["pairwise_comparison"]], width = 12.5, height = 6.25)
+  # name = paste0("figures/", task.key, "_pfi_pairwise.png")
+  # ggsave(name, plots[[task.key]][["pairwise_comparison"]], width = 12.5, height = 6.25)
 
   # Pairwise Top 4
-  name = paste0("figures/", task.key, "_pfi_pairwise_top4.png")
-  ggsave(name, plots[[task.key]][["pairwise_comparison_top4_features"]],
-         width = 12.5, height = 6.25)
+  # name = paste0("figures/", task.key, "_pfi_pairwise_top4.png")
+  # ggsave(name, plots[[task.key]][["pairwise_comparison_top4_features"]],
+  #        width = 12.5, height = 6.25)
   print(paste(task.key, "done"))
 }
 
