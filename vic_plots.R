@@ -15,6 +15,12 @@ library(patchwork)
 
 ## General settings ############################################################
 load("data/design_all_but_TreeFARMS.RData")
+load("data/results_vic_TreeFARMS.RData")
+
+# Keep separate names to avoid accidental overwrites
+vic_treefarms = vic
+vic_treefarms_normalized = vic_normalized
+
 load("data/results_vic_all_but_TreeFARMS.RData")
 
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
@@ -45,6 +51,19 @@ for(task.key in task.keys){
   vic_long[[task.key]] = vic[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_long[[task.key]]$PFI)
+
+  # Add learner_global: NA except for global models, where it holds the underlying learner
+  design_global = design[design$rn == task.key & design$learnername == "global", ]
+  design_global$learner_global = sub(paste0(".*global_(.+)_", task.key, ".*"), "\\1", design_global$rds)
+  design_global$model_key = paste0("m", design_global$model.no)
+  vic_long[[task.key]]$model_key = sub(".+_(m\\d+)$", "\\1", vic_long[[task.key]]$PFI)
+  vic_long[[task.key]]$learner_global = ifelse(
+    vic_long[[task.key]]$learner == "global",
+    design_global$learner_global[match(vic_long[[task.key]]$model_key, design_global$model_key)],
+    NA
+  )
+  vic_long[[task.key]]$model_key = NULL
+
   vic_wide[[task.key]] = vic_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
 
@@ -123,39 +142,113 @@ for(task.key in task.keys){
 
 #### vic normalized ####
 vic_scaled_long = list()
+vic_scaled_long_gosdt_compare = list()
 plots_scaled = list()
 
 for(task.key in task.keys){
   vic_scaled_long[[task.key]] = vic_normalized[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_scaled_long[[task.key]]$PFI)
+  vic_scaled_long[[task.key]]$learner_global = ifelse(
+    !is.na(vic_long[[task.key]]$learner_global),
+    paste0("TruVarImp (", vic_long[[task.key]]$learner_global, ")"),
+    NA
+  )
+  vic_scaled_long[[task.key]]$learner_label = ifelse(
+    vic_scaled_long[[task.key]]$learner != "global",
+    paste0("TruVarImp (", vic_scaled_long[[task.key]]$learner, ")"),
+    NA
+  )
 
-  # Scatter-plot colored according to model class (w/o global)
+  # Build gosdt comparison data for the right panel:
+  # - TruVarImp/CASHomon is stored as pfi_gosdt_*
+  # - TreeFARMS gosdt models are stored as pfi_TreeFARMS_*
+  has_gosdt  = any(grepl("^pfi_gosdt_",     names(vic_normalized[[task.key]])))
+  has_treefarms = any(grepl("^pfi_TreeFARMS_", names(vic_treefarms_normalized[[task.key]])))
+
+  if (has_gosdt || has_treefarms) {
+    gosdt_cols  = names(vic_normalized[[task.key]])[
+      names(vic_normalized[[task.key]]) == "feature" |
+        grepl("^pfi_gosdt_", names(vic_normalized[[task.key]]))
+    ]
+    treefarms_cols = names(vic_treefarms_normalized[[task.key]])[
+      names(vic_treefarms_normalized[[task.key]]) == "feature" |
+        grepl("^pfi_TreeFARMS_", names(vic_treefarms_normalized[[task.key]]))
+    ]
+    gosdt_truevarimp  = vic_normalized[[task.key]][, gosdt_cols,  drop = FALSE]
+    gosdt_treefarms = vic_treefarms_normalized[[task.key]][, treefarms_cols, drop = FALSE]
+
+    if (has_gosdt && has_treefarms) {
+      gosdt_compare = merge(gosdt_truevarimp, gosdt_treefarms, by = "feature", all = TRUE)
+    } else if (has_gosdt) {
+      gosdt_compare = gosdt_truevarimp
+    } else {
+      gosdt_compare = gosdt_treefarms
+    }
+
+    # Lookup model class for TruVarImp (gosdt) models from design (same pattern as learner_global)
+    design_gosdt = design[design$rn == task.key & design$learnername == "gosdt", ]
+    design_gosdt$model_class = sub(paste0(".*gosdt_(.+)_", task.key, ".*"), "\\1", design_gosdt$rds)
+    design_gosdt$model_key   = paste0("m", design_gosdt$model.no)
+
+    vic_scaled_long_gosdt_compare[[task.key]] = gosdt_compare %>%
+      pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value") %>%
+      mutate(
+        model_key = sub(".+_(m\\d+)$", "\\1", PFI),
+        learner = case_when(
+          grepl("^pfi_TreeFARMS_", PFI) ~ "TreeFARMS (gosdt)",
+          grepl("^pfi_gosdt_",     PFI) ~ paste0("TruVarImp (",
+            design_gosdt$model_class[match(model_key, design_gosdt$model_key)], ")"),
+          TRUE ~ "gosdt"
+        )
+      ) %>%
+      select(-model_key)
+  } else {
+    vic_scaled_long_gosdt_compare[[task.key]] = NULL
+  }
+
+  # Shared color scale: built from TruVarImp-formatted labels used in both panels
+  all_learners = sort(unique(c(
+    na.omit(vic_scaled_long[[task.key]]$learner_label),
+    na.omit(vic_scaled_long[[task.key]]$learner_global)
+  )))
+  okabe_ito = c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000")
+  if (length(all_learners) > length(okabe_ito)) {
+    extra_cols = grDevices::hcl.colors(length(all_learners) - length(okabe_ito), palette = "Dark 3")
+    palette_cols = c(okabe_ito, extra_cols)
+  } else {
+    palette_cols = okabe_ito
+  }
+  learner_colors = setNames(palette_cols[seq_along(all_learners)], all_learners)
+  shared_color_scale = scale_color_manual(name = "Model Class", values = learner_colors)
+
+  # Scatter-plot colored according to model class (w/o global), right panel of combined
   plot_scatter = ggplot(subset(vic_scaled_long[[task.key]], learner != "global"),
-                        aes(x = Value, y = feature, color = learner)) +
-    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
-    labs(x = "Importance", y = "Feature",
-         color = "Model Class ") +
-    theme_minimal(base_size = 27) +
-    theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 7, alpha = 1)))
-
-  # Scatter-plot global
-  plot_scatter_global = ggplot(subset(vic_scaled_long[[task.key]], learner == "global"),
-                               aes(x = Value, y = feature)) +
+                        aes(x = Value, y = feature, color = learner_label)) +
     geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
     labs(x = "Importance", y = "Feature") +
-    theme_minimal(base_size = 27) +
-    theme(legend.text = element_text(size = 20))
+    theme_minimal(base_size = 24) +
+    theme(legend.text = element_text(size = 20)) +
+    guides(color = guide_legend(override.aes = list(size = 7, alpha = 1))) +
+    shared_color_scale
 
-  # Combine both scatter plots
-  p_right = plot_scatter +
+  # Scatter-plot global, left panel of combined
+  plot_scatter_global = ggplot(subset(vic_scaled_long[[task.key]], learner == "global"),
+                               aes(x = Value, y = feature, color = learner_global)) +
+    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
+    labs(x = "Importance", y = "Feature") +
+    theme_minimal(base_size = 24) +
+    theme(legend.text = element_text(size = 20)) +
+    guides(color = "none") +
+    shared_color_scale
+
+  # Combined: global (left) + non-global (right, y-axis stripped)
+  p_right_scatter = plot_scatter +
     theme(axis.title.y = element_blank(),
           axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          legend.position = "bottom")
+          axis.ticks.y = element_blank())
 
-  combined = plot_scatter_global + p_right +
+  combined = plot_scatter_global + p_right_scatter +
     plot_layout(widths = c(1, 1), guides = "collect") +
     plot_annotation(
       title = paste0("PFI values, task ", task.key, " (scaled)"),
@@ -201,7 +294,6 @@ for(task.key in task.keys){
   ggsave(name, plots_scaled[[task.key]][["scatter_plot_global"]], width = 10, height = 5)
   name = paste0("figures/", task.key, "_pfi_scatter_combined_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot_combined"]], width = 14, height = 8)
-
   # Boxplot
   name = paste0("figures/", task.key, "_pfi_boxPlot.png")
   ggsave(name, plots[[task.key]][["box_plot"]], width = 10, height = 5)

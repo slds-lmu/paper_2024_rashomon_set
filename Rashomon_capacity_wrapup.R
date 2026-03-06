@@ -192,7 +192,7 @@ RC_sets_filtered = RC_sets %>%
   mutate(
     group_label = case_when(
       RS_method == "TreeFARMS" ~ "TreeFARMS (gosdt)",
-      RS_method == "CASHomon"  ~ "CASHomon (global)"
+      RS_method == "CASHomon"  ~ "TruVarImp (CASH)"
     )
   )
 
@@ -247,7 +247,7 @@ if (!file.exists("data/results_ref_model_performances.RData")) {
       list(test.score = NA_real_, score = NA_character_)
     })
     data.table(task = global_ref$task[i], ref_test_score = res$test.score,
-               score = res$score, group_label = "CASHomon (global)")
+               score = res$score, group_label = "TruVarImp (CASH)")
   }))
 
   # ── TreeFARMS (gosdt) ────────────────────────────────────────────────────────
@@ -308,7 +308,7 @@ if (!file.exists("data/results_ref_model_performances.RData")) {
 
 tasks_rc = sort(unique(RC_perf_all$task))
 
-group_colours = c("TreeFARMS (gosdt)" = "orange", "CASHomon (global)" = "darkgreen")
+group_colours = c("TreeFARMS (gosdt)" = "orange", "TruVarImp (CASH)" = "darkgreen")
 
 for (t in tasks_rc) {
   RC_sub = RC_perf_all %>% filter(task == t)
@@ -405,7 +405,7 @@ for (t in tasks_rc) {
                                          ref_df = ref_sub) +
     labs(title    = paste0("Task: ", t, " (linear)"),
          subtitle = paste0("Score: ", score_label),
-         x = "Test score (lower is better)", y = "RC", color = "Method")
+         x = "Brier score (lower is better)", y = "RC", color = "Method")
 
   ggsave(sprintf("figures/RC_vs_bestperf_linear_%s.png", t),
          plot_rc_vs_perf_linear, width = 6, height = 4)
@@ -417,7 +417,7 @@ for (t in tasks_rc) {
     scale_y_log10(labels = scales::label_number()) +
     labs(title    = paste0("Task: ", t, " (log)"),
          subtitle = paste0("Score: ", score_label),
-         x = "Test score, log axis (lower is better)", y = "RC (log axis)", color = "Method")
+         x = "Brier score, log axis (lower is better)", y = "RC (log axis)", color = "Method")
 
   ggsave(sprintf("figures/RC_vs_bestperf_log_%s.png", t),
          plot_rc_vs_perf_log, width = 6, height = 4)
