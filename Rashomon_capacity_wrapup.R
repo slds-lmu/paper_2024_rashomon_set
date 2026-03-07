@@ -306,6 +306,9 @@ if (!file.exists("data/results_ref_model_performances.RData")) {
   load("data/results_ref_model_performances.RData")  # object: ref_perf_all
 }
 
+# Harmonize label in case the cache was saved with an older name.
+ref_perf_all[group_label == "CASHomon (global)", group_label := "TruVarImp (CASH)"]
+
 tasks_rc = sort(unique(RC_perf_all$task))
 
 group_colours = c("TreeFARMS (gosdt)" = "orange", "TruVarImp (CASH)" = "darkgreen")
