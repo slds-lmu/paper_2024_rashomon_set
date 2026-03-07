@@ -24,7 +24,7 @@ vic_treefarms_normalized = vic_normalized
 load("data/results_vic_all_but_TreeFARMS.RData")
 
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
-alpha_value = 0.3
+alpha_value = 1
 
 
 ## Create plots ################################################################
@@ -141,6 +141,29 @@ for(task.key in task.keys){
 
 
 #### vic normalized ####
+
+# Build a global learner color mapping once across all tasks so that the same
+# learner always gets the same color regardless of which tasks it appears in.
+{
+  orange = "#E69F00"
+  other_okabe = c("#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+  all_global_learners = sort(unique(unlist(lapply(task.keys, function(tk) {
+    na.omit(vic_long[[tk]]$learner_global)
+  }))))
+  other_global_learners = setdiff(all_global_learners, "gosdt")
+  if (length(other_global_learners) > length(other_okabe)) {
+    extra_cols = grDevices::hcl.colors(
+      length(other_global_learners) - length(other_okabe), palette = "Dark 3")
+    other_cols_global = c(other_okabe, extra_cols)
+  } else {
+    other_cols_global = other_okabe
+  }
+  global_learner_colors = c(
+    setNames(other_cols_global[seq_along(other_global_learners)], other_global_learners),
+    c("gosdt" = orange)
+  )
+}
+
 vic_scaled_long = list()
 vic_scaled_long_gosdt_compare = list()
 plots_scaled = list()
@@ -174,29 +197,10 @@ for(task.key in task.keys){
     vic_scaled_long_gosdt_compare[[task.key]] = NULL
   }
 
-  # Shared color scale: union of left panel (learner_global) and right panel (gosdt) labels
-  gosdt_learners = if (!is.null(vic_scaled_long_gosdt_compare[[task.key]]))
-    unique(vic_scaled_long_gosdt_compare[[task.key]]$learner) else character(0)
-  all_learners = sort(unique(c(
-    na.omit(vic_scaled_long[[task.key]]$learner_global),
-    gosdt_learners
-  )))
-  # "gosdt" is always orange; other learners get the remaining Okabe-Ito colors
-  orange = "#E69F00"
-  other_okabe = c("#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
+  # Use the global color mapping so colors are consistent across tasks.
   left_learners = sort(unique(c(na.omit(vic_scaled_long[[task.key]]$learner_global), "gosdt")))
-  other_learners = setdiff(left_learners, "gosdt")
-  if (length(other_learners) > length(other_okabe)) {
-    extra_cols = grDevices::hcl.colors(length(other_learners) - length(other_okabe), palette = "Dark 3")
-    other_cols = c(other_okabe, extra_cols)
-  } else {
-    other_cols = other_okabe
-  }
-  learner_colors = c(setNames(other_cols[seq_along(other_learners)], other_learners),
-                     c("gosdt" = orange))
 
-  scale_left = scale_color_manual(name = "Learner", values = learner_colors,
+  scale_left = scale_color_manual(name = "Learner", values = global_learner_colors,
                                   breaks = left_learners, limits = left_learners)
 
   # Scatter-plot colored according to model class (w/o global), standalone plot
@@ -206,7 +210,7 @@ for(task.key in task.keys){
     labs(x = "Importance", y = "Feature") +
     theme_minimal(base_size = 24) +
     theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 7, alpha = 1))) +
+    guides(color = guide_legend(override.aes = list(size = 7, alpha = alpha_value))) +
     scale_left
 
   # Scatter-plot global, left panel of combined — colored by underlying learner_global
@@ -217,14 +221,14 @@ for(task.key in task.keys){
 
   plot_scatter_global = ggplot(global_data,
                                aes(x = Value, y = feature, color = learner_global)) +
-    geom_quasirandom(alpha = 1, cex = 1, shape = 16, stroke = 0) +
+    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
     geom_point(data = gosdt_anchor,
                aes(x = Value, y = feature, color = learner_global),
                alpha = 0, size = 7) +
     labs(x = "Importance", y = "Feature") +
     theme_minimal(base_size = 24) +
     theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 7, alpha = 1))) +
+    guides(color = guide_legend(override.aes = list(size = 7, alpha = alpha_value))) +
     scale_left
 
   # Combined: global (left) + gosdt comparison (right, y-axis stripped) when available,
@@ -351,11 +355,41 @@ for(tk in task.keys) {
     df_cashomon[tk, lrn] = cashomon_counts[[tk]][lrn]
   }
 }
-df_cashomon
-print(xtable(df_cashomon,
-             caption = "Number of TruVarImp (CASHomon) models per learner class and task",
-             digits = 0),
-      include.rownames = TRUE)
+
+# Find reference model learner class per task from foundmodel_scores_global.csv
+scores_path = "/media/external/rashomon/rashomon_perfs/foundmodel_scores_global.csv"
+if (file.exists(scores_path)) {
+  global_scores = data.table::fread(scores_path)
+  ref_models = global_scores[, .SD[which.min(score)], by = task]
+  ref_learner = setNames(
+    sub(".*global_(.+)_[^_/]+_\\d+\\.rds.*", "\\1", basename(ref_models$filepath)),
+    ref_models$task
+  )
+} else {
+  warning("foundmodel_scores_global.csv not found — reference model stars omitted")
+  ref_learner = setNames(rep(NA_character_, length(task.keys)), task.keys)
+}
+
+# Build character version of the table with "*" marking the reference model class
+df_cashomon_tex = as.data.frame(lapply(cashomon_learners, function(lrn) {
+  sapply(task.keys, function(tk) {
+    val = df_cashomon[tk, lrn]
+    ref = ref_learner[tk]
+    if (!is.na(ref) && ref == lrn && val > 0)
+      paste0(val, "*")
+    else
+      as.character(val)
+  })
+}), stringsAsFactors = FALSE)
+colnames(df_cashomon_tex) = cashomon_learners
+rownames(df_cashomon_tex) = task.keys
+
+df_cashomon_tex
+print(xtable(df_cashomon_tex,
+             caption = "Number of models of each model class within a \\CashomonSet{} found by \\TruVarImp per task. * marks the reference model class.",
+             label = "tab_exp_model_CS"),
+      include.rownames = TRUE,
+      caption.placement = "top")
 
 
 #### Correlation analysis st data ####
