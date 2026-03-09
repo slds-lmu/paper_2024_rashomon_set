@@ -6,6 +6,7 @@ library(tidyr)
 library(dplyr)
 library(GGally)
 library(ggbeeswarm)
+library(gghalves)
 library(rlang)
 library(iml)
 library(corrplot)
@@ -26,6 +27,33 @@ load("data/results_vic_all_but_TreeFARMS.RData")
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
 alpha_value = 1
 
+# Find reference model learner class and model key per task (for triangle markers in plots)
+scores_path = "/media/external/rashomon/rashomon_perfs/foundmodel_scores_global.csv"
+ref_model_key = setNames(rep(NA_character_, length(task.keys)), task.keys)
+if (file.exists(scores_path)) {
+  global_scores = data.table::fread(scores_path)
+  ref_models = global_scores[, .SD[which.min(score)], by = task]
+  ref_learner = setNames(
+    sub(".*global_(.+)_[^_/]+_\\d+\\.rds.*", "\\1", basename(ref_models$filepath)),
+    ref_models$task
+  )
+  ref_learner[ref_learner == "tree"] = "cart"
+  for (tk in task.keys) {
+    ref_row = ref_models[ref_models$task == tk, ]
+    if (nrow(ref_row) == 0) next
+    design_tk = design[design$rn == tk & design$learnername == "global", ]
+    if (nrow(design_tk) == 0) next
+    design_tk$model_key = paste0("m", design_tk$model.no)
+    ref_bn = basename(ref_row$filepath[1])
+    design_bn = basename(design_tk$rds)
+    idx = match(ref_bn, design_bn)
+    if (!is.na(idx))
+      ref_model_key[tk] = design_tk$model_key[idx]
+  }
+} else {
+  warning("foundmodel_scores_global.csv not found — reference model markers omitted")
+  ref_learner = setNames(rep(NA_character_, length(task.keys)), task.keys)
+}
 
 ## Create plots ################################################################
 # Function needed for pairwise plots
@@ -51,10 +79,12 @@ for(task.key in task.keys){
   vic_long[[task.key]] = vic[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_long[[task.key]]$PFI)
+  vic_long[[task.key]]$learner[vic_long[[task.key]]$learner == "tree"] = "cart"
 
   # Add learner_global: NA except for global models, where it holds the underlying learner
   design_global = design[design$rn == task.key & design$learnername == "global", ]
   design_global$learner_global = sub(paste0(".*global_(.+)_", task.key, ".*"), "\\1", design_global$rds)
+  design_global$learner_global[design_global$learner_global == "tree"] = "cart"
   design_global$model_key = paste0("m", design_global$model.no)
   vic_long[[task.key]]$model_key = sub(".+_(m\\d+)$", "\\1", vic_long[[task.key]]$PFI)
   vic_long[[task.key]]$learner_global = ifelse(
@@ -68,10 +98,14 @@ for(task.key in task.keys){
     pivot_wider(names_from = feature, values_from = Value)
 
   # Scatter-plot colored according to model class
-  plot_scatter = ggplot(vic_long[[task.key]], aes(x = Value, y = feature, color = learner)) +
-    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
-    labs(x = "Importance", y = "Feature", color = "Model Class",
+  plot_scatter = ggplot(vic_long[[task.key]], aes(x = feature, y = Value, color = learner)) +
+    geom_half_boxplot(aes(color = NULL), side = "r", nudge = 0.05,
+                      fill = "gray90", color = "gray50",
+                      outlier.shape = NA, width = 0.45) +
+    geom_quasirandom(aes(x = as.integer(factor(feature)) - .2), alpha = alpha_value, cex = 1, shape = 16, stroke = 0, width = 0.2) +
+    labs(x = "Feature", y = "Importance", color = "Model Class",
          title = paste0("PFI values (", task.key, ") colored by learner")) +
+    coord_flip() +
     theme_minimal(base_size = 15) +
     theme(legend.text = element_text(size = 13)) +
     guides(color = guide_legend(override.aes = list(size = 8)))
@@ -146,21 +180,27 @@ for(task.key in task.keys){
 # learner always gets the same color regardless of which tasks it appears in.
 {
   orange = "#E69F00"
-  other_okabe = c("#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+  fixed_colors = c(
+    "gosdt"      = orange,
+    "cart"       = "#D55E00",
+    "svm.linear" = "#0072B2",
+    "svm.radial" = "#56B4E9"
+  )
+  fallback_okabe = c("#009E73", "#F0E442", "#CC79A7")
   all_global_learners = sort(unique(unlist(lapply(task.keys, function(tk) {
     na.omit(vic_long[[tk]]$learner_global)
   }))))
-  other_global_learners = setdiff(all_global_learners, "gosdt")
-  if (length(other_global_learners) > length(other_okabe)) {
+  unassigned_learners = setdiff(all_global_learners, names(fixed_colors))
+  if (length(unassigned_learners) > length(fallback_okabe)) {
     extra_cols = grDevices::hcl.colors(
-      length(other_global_learners) - length(other_okabe), palette = "Dark 3")
-    other_cols_global = c(other_okabe, extra_cols)
+      length(unassigned_learners) - length(fallback_okabe), palette = "Dark 3")
+    fallback_cols = c(fallback_okabe, extra_cols)
   } else {
-    other_cols_global = other_okabe
+    fallback_cols = fallback_okabe
   }
   global_learner_colors = c(
-    setNames(other_cols_global[seq_along(other_global_learners)], other_global_learners),
-    c("gosdt" = orange)
+    fixed_colors[intersect(names(fixed_colors), all_global_learners)],
+    setNames(fallback_cols[seq_along(unassigned_learners)], unassigned_learners)
   )
 }
 
@@ -172,6 +212,7 @@ for(task.key in task.keys){
   vic_scaled_long[[task.key]] = vic_normalized[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   vic_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_scaled_long[[task.key]]$PFI)
+  vic_scaled_long[[task.key]]$learner[vic_scaled_long[[task.key]]$learner == "tree"] = "cart"
   vic_scaled_long[[task.key]]$learner_global = vic_long[[task.key]]$learner_global
   vic_scaled_long[[task.key]]$learner_label = ifelse(
     vic_scaled_long[[task.key]]$learner != "global",
@@ -198,64 +239,102 @@ for(task.key in task.keys){
   }
 
   # Use the global color mapping so colors are consistent across tasks.
-  left_learners = sort(unique(c(na.omit(vic_scaled_long[[task.key]]$learner_global), "gosdt")))
+  # Only force gosdt into the legend when a TreeFARMS comparison panel is shown.
+  left_learners = sort(unique(c(
+    na.omit(vic_scaled_long[[task.key]]$learner_global),
+    if (has_treefarms) "gosdt" else character(0)
+  )))
 
   scale_left = scale_color_manual(name = "Learner", values = global_learner_colors,
                                   breaks = left_learners, limits = left_learners)
 
   # Scatter-plot colored according to model class (w/o global), standalone plot
   plot_scatter = ggplot(subset(vic_scaled_long[[task.key]], learner != "global"),
-                        aes(x = Value, y = feature, color = learner_label)) +
-    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
-    labs(x = "Importance", y = "Feature") +
+                        aes(x = feature, y = Value, color = learner_label)) +
+    geom_half_boxplot(aes(color = NULL), side = "r", nudge = 0.05,
+                      fill = "gray90", color = "gray50",
+                      outlier.shape = NA, width = 0.45) +
+    geom_quasirandom(aes(x = as.integer(factor(feature)) - .3), alpha = alpha_value, size = 0.8, cex = 1, varwidth = TRUE, shape = 16, stroke = 0, width = 0.3) +
+    labs(x = "Feature", y = "Importance") +
+    coord_flip() +
     theme_minimal(base_size = 24) +
     theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 7, alpha = alpha_value))) +
+    guides(color = guide_legend(override.aes = list(size = 5))) +
     scale_left
 
-  # Scatter-plot global, left panel of combined — colored by underlying learner_global
+  # Scatter-plot global — colored by underlying learner_global
   global_data = subset(vic_scaled_long[[task.key]], learner == "global")
   global_data = global_data[sample(nrow(global_data)), ]  # shuffle to avoid systematic overlap
-  gosdt_anchor = data.frame(Value = 0, feature = global_data$feature[1],
-                            learner_global = "gosdt")
 
   plot_scatter_global = ggplot(global_data,
-                               aes(x = Value, y = feature, color = learner_global)) +
-    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
-    geom_point(data = gosdt_anchor,
-               aes(x = Value, y = feature, color = learner_global),
-               alpha = 0, size = 7) +
-    labs(x = "Importance", y = "Feature") +
+                               aes(x = feature, y = Value, color = learner_global)) +
+    geom_half_boxplot(aes(color = NULL), side = "r", nudge = 0.05,
+                      fill = "gray90", color = "gray50",
+                      outlier.shape = NA, width = 0.45) +
+    geom_quasirandom(aes(x = as.integer(factor(feature)) - .3), alpha = alpha_value, size = 0.8, cex = 1, varwidth = TRUE, shape = 16, stroke = 0, width = 0.3) +
+    # Invisible anchor to hold gosdt in the legend when a TreeFARMS panel is shown
+    {if (has_treefarms) {
+      gosdt_anchor = data.frame(Value = 0, feature = global_data$feature[1],
+                                learner_global = "gosdt")
+      geom_point(data = gosdt_anchor,
+                 aes(x = feature, y = Value, color = learner_global),
+                 alpha = 0, size = 7)
+    }} +
+    labs(x = "Feature", y = "Importance") +
+    coord_flip() +
     theme_minimal(base_size = 24) +
     theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 7, alpha = alpha_value))) +
+    guides(color = guide_legend(override.aes = list(size = 5))) +
     scale_left
 
-  # Combined: global (left) + gosdt comparison (right, y-axis stripped) when available,
-  # otherwise global (left) + non-global scatter (right)
-  if (!is.null(vic_scaled_long_gosdt_compare[[task.key]])) {
+  # Combined plot: two panels when TreeFARMS data exists, single panel otherwise
+  if (has_treefarms) {
     p_right = ggplot(vic_scaled_long_gosdt_compare[[task.key]],
-                     aes(x = Value, y = feature)) +
-      geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0, color = orange) +
-      labs(x = "Importance", y = "Feature") +
+                     aes(x = feature, y = Value)) +
+      geom_half_boxplot(side = "r", nudge = 0.05,
+                        fill = "gray90", color = "gray50",
+                        outlier.shape = NA, width = 0.45) +
+      geom_quasirandom(aes(x = as.integer(factor(feature)) - .3), alpha = alpha_value, size = 0.8, cex = 1, varwidth = TRUE, shape = 16, stroke = 0, color = orange, width = 0.3) +
+      labs(x = "Feature", y = "Importance") +
+      coord_flip() +
       theme_minimal(base_size = 24) +
       theme(axis.title.y = element_blank(),
             axis.text.y = element_blank(),
             axis.ticks.y = element_blank())
-  } else {
-    p_right = plot_scatter +
-      theme(axis.title.y = element_blank(),
-            axis.text.y = element_blank(),
-            axis.ticks.y = element_blank())
-  }
 
-  combined = plot_scatter_global + p_right +
-    plot_layout(widths = c(1, 1), guides = "collect") +
-    plot_annotation(
-      title = paste0("PFI values, task ", task.key, " (scaled)"),
-      theme = theme(plot.title = element_text(size = 27, hjust = 0.5))
-    ) &
-    theme(legend.position = "bottom")
+    combined = plot_scatter_global + p_right +
+      plot_layout(widths = c(1, 1), guides = "collect") +
+      plot_annotation(
+        title = paste0("PFI values, task ", task.key, " (scaled)"),
+        theme = theme(plot.title = element_text(size = 27, hjust = 0.5))
+      ) &
+      theme(legend.position = "bottom")
+  } else {
+    # Single panel: add reference model PFI as triangles (when available)
+    p = plot_scatter_global
+    mk = ref_model_key[task.key]
+    if (!is.na(mk)) {
+      pfi_col = grep(paste0("_", mk, "$"), names(vic_normalized[[task.key]]), value = TRUE)
+      pfi_col = grep("^pfi_global_", pfi_col, value = TRUE)
+      if (length(pfi_col) > 0) {
+        ref_pfi = data.frame(
+          feature = vic_normalized[[task.key]]$feature,
+          Value = vic_normalized[[task.key]][[pfi_col[1]]],
+          learner_global = ref_learner[task.key]
+        )
+        p = p + geom_point(data = ref_pfi,
+                          aes(x = as.integer(factor(feature)) - .3, y = Value, fill = learner_global),
+                          shape = 24, size = 2.5, colour = "black", stroke = 0.5, show.legend = FALSE) +
+          scale_fill_manual(values = global_learner_colors, breaks = left_learners, limits = left_learners)
+      }
+    }
+    combined = p +
+      plot_annotation(
+        title = paste0("PFI values, task ", task.key, " (scaled)"),
+        theme = theme(plot.title = element_text(size = 27, hjust = 0.5))
+      ) &
+      theme(legend.position = "bottom")
+  }
 
   # Box plot
   plot_box = ggplot(vic_scaled_long[[task.key]]) +
@@ -294,7 +373,9 @@ for(task.key in task.keys){
   name = paste0("figures/", task.key, "_pfi_scatter_global_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot_global"]], width = 10, height = 5)
   name = paste0("figures/", task.key, "_pfi_scatter_combined_scaled.png")
-  ggsave(name, plots_scaled[[task.key]][["scatter_plot_combined"]], width = 14, height = 8)
+  n_features = nrow(vic_normalized[[task.key]])
+  combined_height = max(7, n_features * 0.55 + 1.5)
+  ggsave(name, plots_scaled[[task.key]][["scatter_plot_combined"]], width = 14, height = combined_height)
   # Boxplot
   name = paste0("figures/", task.key, "_pfi_boxPlot.png")
   ggsave(name, plots[[task.key]][["box_plot"]], width = 10, height = 5)
@@ -354,20 +435,6 @@ for(tk in task.keys) {
   for(lrn in names(cashomon_counts[[tk]])) {
     df_cashomon[tk, lrn] = cashomon_counts[[tk]][lrn]
   }
-}
-
-# Find reference model learner class per task from foundmodel_scores_global.csv
-scores_path = "/media/external/rashomon/rashomon_perfs/foundmodel_scores_global.csv"
-if (file.exists(scores_path)) {
-  global_scores = data.table::fread(scores_path)
-  ref_models = global_scores[, .SD[which.min(score)], by = task]
-  ref_learner = setNames(
-    sub(".*global_(.+)_[^_/]+_\\d+\\.rds.*", "\\1", basename(ref_models$filepath)),
-    ref_models$task
-  )
-} else {
-  warning("foundmodel_scores_global.csv not found — reference model stars omitted")
-  ref_learner = setNames(rep(NA_character_, length(task.keys)), task.keys)
 }
 
 # Build character version of the table with "*" marking the reference model class
@@ -443,11 +510,16 @@ for(task.key in task.keys){
   f_ranks_long[[task.key]] = f_ranks[[task.key]] %>%
     pivot_longer(cols = starts_with("pfi"), names_to = "PFI", values_to = "Value")
   f_ranks_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", f_ranks_long[[task.key]]$PFI)
+  f_ranks_long[[task.key]]$learner[f_ranks_long[[task.key]]$learner == "tree"] = "cart"
 
-  plot_rank_scatter = ggplot(f_ranks_long[[task.key]], aes(x = Value, y = feature, color = learner)) +
-    geom_quasirandom(alpha = alpha_value, cex = 1, shape = 16, stroke = 0) +
-    labs(x = "Rank", y = "Feature", color = "Model Class",
+  plot_rank_scatter = ggplot(f_ranks_long[[task.key]], aes(x = feature, y = Value, color = learner)) +
+    geom_half_boxplot(aes(color = NULL), side = "r", nudge = 0.05,
+                      fill = "gray90", color = "gray50",
+                      outlier.shape = NA, width = 0.45) +
+    geom_quasirandom(aes(x = as.integer(factor(feature)) - .2), alpha = alpha_value, cex = 1, shape = 16, stroke = 0, width = 0.2) +
+    labs(x = "Feature", y = "Rank", color = "Model Class",
          title = paste0("PFI ranks (", task.key, ") colored by learner")) +
+    coord_flip() +
     theme_minimal(base_size = 15)
 
   if(is_empty(plots[[task.key]])) plots[[task.key]] = list()
