@@ -259,7 +259,7 @@ for(task.key in task.keys){
     coord_flip() +
     theme_minimal(base_size = 24) +
     theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 5))) +
+    guides(color = guide_legend(override.aes = list(size = 5, alpha = 1))) +
     scale_left
 
   # Scatter-plot global — colored by underlying learner_global
@@ -284,7 +284,7 @@ for(task.key in task.keys){
     coord_flip() +
     theme_minimal(base_size = 24) +
     theme(legend.text = element_text(size = 20)) +
-    guides(color = guide_legend(override.aes = list(size = 5))) +
+    guides(color = guide_legend(override.aes = list(size = 5, alpha = 1))) +
     scale_left
 
   # Combined plot: two panels when TreeFARMS data exists, single panel otherwise
