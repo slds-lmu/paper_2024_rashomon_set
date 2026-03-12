@@ -381,6 +381,12 @@ for (t in tasks_rc) {
                  aes(x = test.score, y = RC_value, color = group_label),
                  shape = 21, size = 2, fill = "white", stroke = 1) +
       scale_color_manual(values = group_colours) +
+      guides(color = guide_legend(override.aes = list(
+        shape = 16,
+        linewidth = 0,
+        fill = NA,
+        size = 3
+      ))) +
       labs(color = "Method") +
       theme_minimal(base_size = 16) +
       theme(legend.position = "bottom")
@@ -425,5 +431,4 @@ for (t in tasks_rc) {
   ggsave(sprintf("../figures/RC_vs_bestperf_log_%s.png", t),
          plot_rc_vs_perf_log, width = 6, height = 4)
 }
-
 
