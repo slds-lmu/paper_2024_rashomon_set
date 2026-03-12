@@ -1,4 +1,4 @@
-source("init.R")
+source("../init.R")
 
 library(batchtools)
 library(ggplot2)
@@ -92,7 +92,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
   calculate_pfi(task = instance, model = model, seed = 1, perm.reps = 10)
 })
 
-load("data/design_all_but_TreeFARMS.RData")
+load("../data/design_all_but_TreeFARMS.RData")
 
 addExperiments(
   prob.designs = list(fromlist = data.table(taskname = design$rn)),
@@ -128,13 +128,7 @@ for(i in 1:length(job_table$prob.pars)){
 
   result = reduceResultsList(ids = i, reg = regr, fun = function(x) {
     tab1 = x[[1]]$results
-    # tab2 = x[[2]]$results
-    # st1 =
     subset(tab1, select = c(feature, importance))
-    # colnames(st1) = c("feature", "fi_diff")
-    # st2 = subset(tab2, select = c(feature, importance))
-    # colnames(st2) = c("feature", "fi_ratio")
-    # merge(st1, st2, by = "feature")
   })
 
   if(!(taskname %in% names(vic)) || dim(vic[[taskname]])[1] == 0){
@@ -168,5 +162,5 @@ if(length(unique(design$learnername)) == 1){
   vic$bs = cbind(vic$bs, tmp_vic$bs[-1])
   vic_normalized$bs = cbind(vic_normalized$bs, tmp_vic_norm$bs[-1])
 }
-# save(vic, vic_normalized, file = paste0("data/results_vic_", design$rn[1], ".RData"))
-save(vic, vic_normalized, file = paste0("data/results_vic_all_but_TreeFARMS.RData"))
+
+save(vic, vic_normalized, file = paste0("../data/results_vic_all_but_TreeFARMS.RData"))

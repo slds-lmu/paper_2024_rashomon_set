@@ -6,16 +6,11 @@
 ## - Algorithm: takes this object and computes RMSE (regression) or
 ##   Brier score (binary classification).
 
-source("init.R")
+source("../init.R")
 
 library(batchtools)
 library(data.table)
 library(mlr3measures)
-
-
-## Load predictions ------------------------------------------------------------
-
-load("data/results_preds_all_but_TreeFARMS.RData")  # object: `preds`
 
 
 ## Build design: one row per (task, learner, model) ----------------------------
@@ -51,7 +46,7 @@ regr = loadRegistry("/media/external/ewaldf/all_but_TreeFARMS_perf", writeable =
 addProblem("perfdata", fun = function(data, job, taskname, learnername, model.no) {
   # Task and validation split
   task = list.tasks[[taskname]]
-  
+
   if (taskname == "bs") {
     task_data = as.data.frame(task$data())
     task_id = task$id
@@ -61,13 +56,13 @@ addProblem("perfdata", fun = function(data, job, taskname, learnername, model.no
     }
     task = as_task_regr(task_data, target = task_target, id = task_id)
   }
-  
+
   task_valid = generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$validation
   truth = task_valid$data(cols = task_valid$target_names)[[1]]
-  
+
   # Predictions for this (task, learner, model)
   pred_obj = preds[[taskname]][[learnername]][[model.no]]
-  
+
   list(
     task_type = class(task_valid)[1L],
     properties = task_valid$properties,
@@ -97,7 +92,7 @@ addAlgorithm("eval_perf", fun = function(data, instance, job) {
   } else {
     stop("Unsupported task type for performance evaluation.")
   }
-  
+
   list(test.score = score.val, score = score.type)
 })
 
@@ -111,7 +106,7 @@ addExperiments(
   reg = regr
 )
 
-load("data/results_preds_all_but_TreeFARMS.RData")
+load("../data/results_preds_all_but_TreeFARMS.RData")
 batchExport(list(preds = preds), reg = regr)
 
 ## Run batchtools --------------------------------------------------------------
@@ -143,6 +138,6 @@ res_dt = rbindlist(lapply(seq_along(res_list), function(i) {
 
 print(res_dt)
 
-save(res_dt, file = "data/results_modelperformances.RData")
+save(res_dt, file = "../data/results_modelperformances.RData")
 
 

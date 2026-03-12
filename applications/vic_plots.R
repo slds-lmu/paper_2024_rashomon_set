@@ -1,4 +1,4 @@
-source("init.R")
+source("../init.R")
 
 library(data.table)
 library(ggplot2)
@@ -15,14 +15,14 @@ library(patchwork)
 
 
 ## General settings ############################################################
-load("data/design_all_but_TreeFARMS.RData")
-load("data/results_vic_TreeFARMS.RData")
+load("../data/design_all_but_TreeFARMS.RData")
+load("../data/results_vic_TreeFARMS.RData")
 
 # Keep separate names to avoid accidental overwrites
 vic_treefarms = vic
 vic_treefarms_normalized = vic_normalized
 
-load("data/results_vic_all_but_TreeFARMS.RData")
+load("../data/results_vic_all_but_TreeFARMS.RData")
 
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
 alpha_value = 1
@@ -366,34 +366,35 @@ for(task.key in task.keys){
 ## Save plots ##################################################################
 for(task.key in task.keys){
   # Scatter learner
-  name = paste0("figures/", task.key, "_pfi_scatter_learner.png")
+  name = paste0("../figures/", task.key, "_pfi_scatter_learner.png")
   ggsave(name, plots[[task.key]][["scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_scatter_learner_scaled.png")
+  name = paste0("../figures/", task.key, "_pfi_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_scatter_global_scaled.png")
+  name = paste0("../figures/", task.key, "_pfi_scatter_global_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["scatter_plot_global"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_scatter_combined_scaled.png")
+  name = paste0("../figures/", task.key, "_pfi_scatter_combined_scaled.png")
   n_features = nrow(vic_normalized[[task.key]])
   combined_height = max(7, n_features * 0.55 + 1.5)
   ggsave(name, plots_scaled[[task.key]][["scatter_plot_combined"]], width = 14, height = combined_height)
+
   # Boxplot
-  name = paste0("figures/", task.key, "_pfi_boxPlot.png")
+  name = paste0("../figures/", task.key, "_pfi_boxPlot.png")
   ggsave(name, plots[[task.key]][["box_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_boxPlot_scaled.png")
+  name = paste0("../figures/", task.key, "_pfi_boxPlot_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["box_plot"]], width = 10, height = 5)
 
   # Violin plot
-  name = paste0("figures/", task.key, "_pfi_violinPlot.png")
+  name = paste0("../figures/", task.key, "_pfi_violinPlot.png")
   ggsave(name, plots[[task.key]][["violin_plot"]], width = 10, height = 5)
-  name = paste0("figures/", task.key, "_pfi_violinPlot_scaled.png")
+  name = paste0("../figures/", task.key, "_pfi_violinPlot_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["violin_plot"]], width = 10, height = 5)
 
   # Pairwise
-  # name = paste0("figures/", task.key, "_pfi_pairwise.png")
+  # name = paste0("../figures/", task.key, "_pfi_pairwise.png")
   # ggsave(name, plots[[task.key]][["pairwise_comparison"]], width = 12.5, height = 6.25)
 
   # Pairwise Top 4
-  # name = paste0("figures/", task.key, "_pfi_pairwise_top4.png")
+  # name = paste0("../figures/", task.key, "_pfi_pairwise_top4.png")
   # ggsave(name, plots[[task.key]][["pairwise_comparison_top4_features"]],
   #        width = 12.5, height = 6.25)
   print(paste(task.key, "done"))
@@ -466,7 +467,7 @@ data = generateCanonicalDataSplits(list.tasks$st, ratio = 2 / 3, seed = 1)$valid
 data_spearman_corr <- cor(data, method = "spearman")
 
 # plot
-name = paste0("figures/st_data_cor_spearman.pdf")
+name = paste0("../figures/st_data_cor_spearman.pdf")
 pdf(file = name, width = 7, height = 7)
 corrplot(data_spearman_corr, method = "circle", type = "lower", tl.col = "black")
 dev.off()
@@ -487,12 +488,12 @@ vic_kendall_corr <- lapply(vic_t, function(x) cor(x, method = "kendall"))
 
 # plot
 for(task.key in task.keys){
-  name = paste0("figures/", task.key, "_pfi_cor_spearman.pdf")
+  name = paste0("../figures/", task.key, "_pfi_cor_spearman.pdf")
   pdf(file = name, width = 7, height = 7)
   corrplot(vic_spearman_corr[[task.key]], method = "circle", type = "lower", tl.col = "black")
   dev.off()
 
-  name = paste0("figures/", task.key, "_pfi_cor_kendall.pdf")
+  name = paste0("../figures/", task.key, "_pfi_cor_kendall.pdf")
   pdf(file = name, width = 7, height = 7)
   corrplot(vic_kendall_corr[[task.key]], method = "circle", type = "lower", tl.col = "black")
   dev.off()
@@ -528,6 +529,6 @@ for(task.key in task.keys){
 
 # save plots
 for(task.key in task.keys){
-  name = paste0("figures/pfi_ranks_", task.key, "_scatter.pdf")
+  name = paste0("../figures/pfi_ranks_", task.key, "_scatter.pdf")
   ggsave(name, plots[[task.key]][["scatter_plot_ranks"]], width = 10, height = 5)
 }

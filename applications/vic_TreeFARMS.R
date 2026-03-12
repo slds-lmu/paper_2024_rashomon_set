@@ -1,5 +1,5 @@
 # source("prepare_tasks.R")
-source("init.R")
+source("../init.R")
 
 library(batchtools)
 library(ggplot2)
@@ -20,7 +20,7 @@ regr$cluster.functions = makeClusterFunctionsSocket(ncpus = 12)
 # Define Problem
 addProblem("fromlist", fun = function(data, job, taskname) {
   task = list.tasks[[taskname]]
-  
+
   # Fix logical features (for FeatureImp)
   if(taskname == "bs"){
     task_data = as.data.frame(task$data())
@@ -31,7 +31,7 @@ addProblem("fromlist", fun = function(data, job, taskname) {
     }
     task = as_task_regr(task_data, target = task_target, id = task_id)
   }
-  
+
   # Return of the validation split
   generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$validation
 })
@@ -42,7 +42,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
   model <- readRDS(sprintf("/media/external/rashomon/datafiles/treefarms/treefarms_%s.rds", RS))
   try(model$modelcontainer)
   model$param_set$values$selected_tree <- model.id
-  
+
   # Fix models in case of task bs (logical features)
   if(job$pars$prob.pars$taskname == "bs"){
     # fix model
@@ -58,7 +58,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
     model = lr
     rm(gr, lr, xstate, holiday.special)
   }
-  
+
   # Function calculating PFI
   calculate_pfi = function(task, model, seed, perm.reps){
     set.seed(seed)
@@ -83,7 +83,7 @@ addAlgorithm("calculate_vic_pfi", fun = function(data, instance, job, learnernam
       stop("Unsupported task type")
     }
   }
-  
+
   # Calculate VIC
   calculate_pfi(task = instance, model = model, seed = 1, perm.reps = 10)
 })
@@ -95,14 +95,14 @@ set.seed(12)
 treefarms.info <- fread("/media/external/rashomon/datafiles/treefarms/treefarms_info.csv")
 model.ids <- treefarms.info[offset == 0.05 & balance == FALSE & successful == TRUE & use.adder == FALSE, job.id]
 
-design <- data.table(rn=character(), learnername=character(), 
+design <- data.table(rn=character(), learnername=character(),
                      model.id=character(), RS = integer())
 for(model.id in model.ids){
   model <- readRDS(sprintf("/media/external/rashomon/datafiles/treefarms/treefarms_%s.rds", model.id))
   try(model$modelcontainer)
   model.nos <- replicate(1200, model$sampleTreeIndex())
-  design_tmp <- data.table(rn = treefarms.info[job.id == model.id, taskname], 
-                           learnername = "TreeFARMS", 
+  design_tmp <- data.table(rn = treefarms.info[job.id == model.id, taskname],
+                           learnername = "TreeFARMS",
                            model.id = model.nos,
                            RS = model.id)
   design <- rbind(design, design_tmp)
@@ -148,7 +148,7 @@ save_results = function(job_table, ids, learnername){
                     by = "feature")
     colnames(vic_tmp)[j+1] = paste0("pfi_", learnername, "_m", ids[j])
   }
-  
+
   res.list = list()
   res.list$list.pfi = list.pfi_tmp
   res.list$vic = vic_tmp
@@ -195,5 +195,5 @@ for(i in 1:length(rn)){
   }
 }
 
-save(vic, vic_normalized, file = paste0("data/results_vic_TreeFARMS.RData"))
+save(vic, vic_normalized, file = paste0("../data/results_vic_TreeFARMS.RData"))
 

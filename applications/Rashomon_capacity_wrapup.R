@@ -1,16 +1,16 @@
 ## Rashomon Capacity ----------------------------------------------------------
-source("init.R")
+source("../init.R")
 library(xtable)
 library(tidyr)
 library(ggplot2)
 library(dplyr)
 
 ## TreeFARMS
-load("data/results_pred.mult_TreeFARMS.RData")
+load("../data/results_pred.mult_TreeFARMS.RData")
 RC = result_pred.mult
 
 ## other
-load("data/results_pred.mult_all_but_TreeFARMS.RData")
+load("../data/results_pred.mult_all_but_TreeFARMS.RData")
 RC = rbind(RC, result_pred.mult)
 
 
@@ -37,9 +37,9 @@ small_value <- 1e-12
 RC_gosdt_clamped_long <- RC_gosdt %>%
   # Reshape from wide to long format
   pivot_longer(
-    cols = c(TreeFARMS, CASHomon, `Full CASHomon`), 
-    names_to = "Method",                            
-    values_to = "Value"                             
+    cols = c(TreeFARMS, CASHomon, `Full CASHomon`),
+    names_to = "Method",
+    values_to = "Value"
   ) %>%
   # Apply the clamping transformation for log safety
   mutate(
@@ -51,8 +51,8 @@ plot1 = ggplot(RC_gosdt_long, aes(x = Method, y = Value, fill = Method)) +
   geom_col() +
   facet_wrap(~ taskname, scales = "free_y", ncol = 3) +
   scale_y_continuous() +
-  scale_fill_manual(values = c("CASHomon" = "blue", 
-                               "Full CASHomon" = "darkgreen", 
+  scale_fill_manual(values = c("CASHomon" = "blue",
+                               "Full CASHomon" = "darkgreen",
                                "TreeFARMS" = "orange")) +
   labs(
     title = "RC Values by Method, Faceted by Task",
@@ -69,7 +69,7 @@ plot1 = ggplot(RC_gosdt_long, aes(x = Method, y = Value, fill = Method)) +
     strip.text = element_text(face = "bold")
   )
 
-ggsave("figures/RC_values_TreeFARMS_comparison.png", plot1, width = 10, height = 5)
+ggsave("../figures/RC_values_TreeFARMS_comparison.png", plot1, width = 10, height = 5)
 
 #### compare Cashomon based on single learners with Cashomon on several learners ----------------------------------------------------------
 RC_CS = RC[RC$RS.algo == "CASHomon", ]
@@ -79,27 +79,27 @@ RC_CS_pw = RC_CS_pw[, c(setdiff(names(RC_CS_pw), "global"), "global")]
 
 print(xtable(RC_CS_pw, caption = "XX", digits = 4), include.rownames = FALSE)
 
-# plot 
+# plot
 RC_CS_pw_long <- RC_CS_pw %>%
   pivot_longer(
     cols = -taskname,
-    names_to = "Learner", 
+    names_to = "Learner",
     values_to = "RC_Value"
   ) %>%
   # Filter out NA values
   filter(!is.na(RC_Value))
 
 plot2 = ggplot(RC_CS_pw_long, aes(x = Learner, y = RC_Value, fill = Learner)) +
-  
+
   geom_col() +
-  
+
   # Ensure the x-axis order is maintained, which keeps 'global' on the right
   # Use fct_inorder to preserve the original column order for the x-axis within facets
   # This makes 'global' appear on the right side of the other learners.
   facet_wrap(~ taskname, scales = "free_y", ncol = 3) +
-  
+
   scale_y_continuous() +
-  
+
   labs(
     title = "RC Values Comparison, Faceted by Task",
     x = "Learner (Algorithm)",
@@ -114,7 +114,7 @@ plot2 = ggplot(RC_CS_pw_long, aes(x = Learner, y = RC_Value, fill = Learner)) +
     strip.text = element_text(face = "bold")
   )
 
-ggsave("figures/RC_values_CSlearner_comparison.png", plot2, width = 10, height = 10)
+ggsave("../figures/RC_values_CSlearner_comparison.png", plot2, width = 10, height = 10)
 
 
 ## RC vs best performance per Rashomon set --------------------------------------
@@ -123,8 +123,8 @@ ggsave("figures/RC_values_CSlearner_comparison.png", plot2, width = 10, height =
 # - TreeFARMS applies to learner "gosdt" only
 # - CASHomon applies to several learners; learner "global" is the pooled setting
 
-load("data/results_modelperformances_TreeFARMS.RData")
-load("data/results_modelperformances.RData")
+load("../data/results_modelperformances_TreeFARMS.RData")
+load("../data/results_modelperformances.RData")
 
 # Standardize performance data BEFORE merging:
 # - non-TreeFARMS results come from CASHomon and keep their learner labels
@@ -296,14 +296,14 @@ if (!file.exists("data/results_ref_model_performances.RData")) {
   }))
 
   ref_perf_all <- rbind(ref_cashomon, ref_treefarms, fill = TRUE)
-  save(ref_perf_all, file = "data/results_ref_model_performances.RData")
+  save(ref_perf_all, file = "../data/results_ref_model_performances.RData")
   message("Reference model performances saved to data/results_ref_model_performances.RData")
 
   cat("\nTreeFARMS tied reference-model counts (exact minimum, not epsilon-ball):\n")
   print(ref_treefarms[, .(task, min_train_metric, n_tied_ref)])
 
 } else {
-  load("data/results_ref_model_performances.RData")  # object: ref_perf_all
+  load("../data/results_ref_model_performances.RData")  # object: ref_perf_all
 }
 
 # Harmonize label in case the cache was saved with an older name.
@@ -410,7 +410,7 @@ for (t in tasks_rc) {
          subtitle = paste0("Score: ", score_label),
          x = "Brier score (lower is better)", y = "RC", color = "Method")
 
-  ggsave(sprintf("figures/RC_vs_bestperf_linear_%s.png", t),
+  ggsave(sprintf("../figures/RC_vs_bestperf_linear_%s.png", t),
          plot_rc_vs_perf_linear, width = 6, height = 4)
 
   # ── Log plot ─────────────────────────────────────────────────────────────────
@@ -422,16 +422,8 @@ for (t in tasks_rc) {
          subtitle = paste0("Score: ", score_label),
          x = "Brier score, log axis (lower is better)", y = "RC (log axis)", color = "Method")
 
-  ggsave(sprintf("figures/RC_vs_bestperf_log_%s.png", t),
+  ggsave(sprintf("../figures/RC_vs_bestperf_log_%s.png", t),
          plot_rc_vs_perf_log, width = 6, height = 4)
 }
 
-RC_perf_corr = RC_perf %>%
-  group_by(score) %>%
-  summarize(
-    n = n(),
-    spearman_rho = cor(best_test_score, RC_value, method = "spearman", use = "complete.obs"),
-    .groups = "drop"
-  )
 
-print(RC_perf_corr)

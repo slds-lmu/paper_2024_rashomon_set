@@ -1,4 +1,4 @@
-source("init.R")
+source("../init.R")
 
 library(data.table)
 library(ggplot2)
@@ -13,8 +13,8 @@ library(xtable)
 
 
 ## General settings ############################################################
-load("data/results_vic_TreeFARMS.RData")
-load("data/design_TreeFARMS.RData")
+load("../data/results_vic_TreeFARMS.RData")
+load("../data/design_TreeFARMS.RData")
 
 task.keys = names(vic) # german credit, compas, bike sharing, synthetic
 learner.keys = "TreeFARMS"
@@ -22,19 +22,19 @@ learner.keys = "TreeFARMS"
 vic_TF_RS = vic
 vic_TF_normalized_RS = vic_normalized
 
-load("data/design_all_but_TreeFARMS.RData")
-load("data/results_vic_all_but_TreeFARMS.RData")
+load("../data/design_all_but_TreeFARMS.RData")
+load("../data/results_vic_all_but_TreeFARMS.RData")
 
 vic_gosdt <- lapply(vic, function(dt) {
   # Identify columns that start with "pfi_gosdt_" or are exactly "features"
   keep_cols <- names(dt)[names(dt) == "feature" | grepl("^pfi_gosdt_", names(dt))]
-  dt[, keep_cols]  
+  dt[, keep_cols]
 })
 vic_gosdt_s <- vic_gosdt[names(vic_gosdt) %in% task.keys]
 vic_normalized_gosdt <- lapply(vic_normalized, function(dt) {
   # Identify columns that start with "pfi_gosdt_" or are exactly "features"
   keep_cols <- names(dt)[names(dt) == "feature" | grepl("^pfi_gosdt_", names(dt))]
-  dt[, keep_cols]  
+  dt[, keep_cols]
 })
 vic_normalized_gosdt_s <- vic_normalized_gosdt[names(vic_normalized_gosdt) %in% task.keys]
 
@@ -61,11 +61,11 @@ gpairs_lower <- function(g){
   g$plots <- g$plots[-(1:g$nrow)]
   g$yAxisLabels <- g$yAxisLabels[-1]
   g$nrow <- g$nrow -1
-  
+
   g$plots <- g$plots[-(seq(g$ncol, length(g$plots), by = g$ncol))]
   g$xAxisLabels <- g$xAxisLabels[-g$ncol]
   g$ncol <- g$ncol - 1
-  
+
   g
 }
 
@@ -80,7 +80,7 @@ for(task.key in task.keys){
   vic_TFm_RS_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_TFm_RS_long[[task.key]]$PFI)
   vic_TFm_RS_wide[[task.key]] = vic_TFm_RS_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
-  
+
   # Plot 2: Scatter-plot using jitter colored acc. to model class
   plot2 = ggplot(vic_TFm_RS_long[[task.key]], aes(x = Value, y = feature,
                                               color = learner, alpha = alpha_value)) +
@@ -91,7 +91,7 @@ for(task.key in task.keys){
     theme_minimal(base_size = 15) +
     theme(legend.text = element_text(size=13)) +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
-  
+
   # Plot 3: Box plot
   plot3 = ggplot(vic_TFm_RS_long[[task.key]]) +
     geom_boxplot(aes(x = feature, y = Value), fill = "gray") +
@@ -102,7 +102,7 @@ for(task.key in task.keys){
     theme_minimal(base_size = 15)  +
     theme(legend.text = element_text(size=13)) +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
-  
+
   # Plot 4: Pairwise Plots
   lowerfun <- function(data,mapping){
     ggplot(data = data, mapping = mapping)+
@@ -123,7 +123,7 @@ for(task.key in task.keys){
     theme(legend.position = "bottom", legend.text = element_text(size=13)) +
     labs(colour = "Model Class")  +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
-  
+
   ## Plot 5: Pairwise Plots of the four most important features
   tmp_df = data.frame(feature = vic_merge[[task.key]]$feature,
                       mean_pfi = apply(vic_merge[[task.key]][,-1], 1, mean))
@@ -148,7 +148,7 @@ for(task.key in task.keys){
     labs(colour = "Model Class")  +
     guides(alpha = FALSE, color = guide_legend(override.aes = list(size=8)))
   rm(tmp_df, top4_features)
-  
+
   plots[[task.key]] = list()
   plots[[task.key]][["RS_scatter_plot"]] = plot2
   plots[[task.key]][["RS_box_plot"]] = plot3
@@ -166,7 +166,7 @@ for(task.key in task.keys){
   vic_TFm_RS_scaled_long[[task.key]]$learner = sub(".*_(.*?)_.*", "\\1", vic_TFm_RS_scaled_long[[task.key]]$PFI)
   vic_TFm_RS_scaled_wide[[task.key]] = vic_TFm_RS_scaled_long[[task.key]] %>%
     pivot_wider(names_from = feature, values_from = Value)
-  
+
   # Plot 2: Scatter-plot using jitter colored acc. to model class
   plot2 = ggplot(vic_TFm_RS_scaled_long[[task.key]], aes(x = Value, y = feature,
                                                      color = learner,
@@ -178,7 +178,7 @@ for(task.key in task.keys){
     theme_minimal(base_size = 15) +
     theme(legend.text = element_text(size=13)) +
     guides(color = guide_legend(override.aes = list(size=8)))
-  
+
   # Plot 3: Box plot
   plot3 = ggplot(vic_TFm_RS_scaled_long[[task.key]]) +
     coord_flip() +
@@ -194,8 +194,8 @@ for(task.key in task.keys){
     plot3 = plot3 +
       geom_boxplot(aes(x = feature, y = Value, fill = learner, alpha = alpha_value))
   }
-  
-  
+
+
   plots_scaled[[task.key]] = list()
   plots_scaled[[task.key]][["RS_scatter_plot"]] = plot2
   plots_scaled[[task.key]][["RS_box_plot"]] = plot3
@@ -205,20 +205,20 @@ for(task.key in task.keys){
 # save plots
 for(task.key in task.keys){
   # scatter learner
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner.png")
+  name = paste0("../figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner.png")
   ggsave(name, plots[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner_scaled.png")
+  name = paste0("../figures/TreeFARMS_", task.key, "_pfi_RS_scatter_learner_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_scatter_plot"]], width = 10, height = 5)
   # boxplot
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot.png")
+  name = paste0("../figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot.png")
   ggsave(name, plots[[task.key]][["RS_box_plot"]], width = 10, height = 5)
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot_scaled.png")
+  name = paste0("../figures/TreeFARMS_", task.key, "_pfi_RS_boxPlot_scaled.png")
   ggsave(name, plots_scaled[[task.key]][["RS_box_plot"]], width = 10, height = 5)
   # pairwise
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_pairwise.png")
+  name = paste0("../figures/TreeFARMS_", task.key, "_pfi_RS_pairwise.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison"]], width = 12.5, height = 6.25)
   # pairwise Top 4
-  name = paste0("figures/TreeFARMS_", task.key, "_pfi_RS_pairwise_top4.png")
+  name = paste0("../figures/TreeFARMS_", task.key, "_pfi_RS_pairwise_top4.png")
   ggsave(name, plots[[task.key]][["RS_pairwise_comparison_top4_features"]],
          width = 12.5, height = 6.25)
   print(paste(task.key, "done"))

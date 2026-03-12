@@ -6,7 +6,7 @@
 ## - Algorithm: takes this object and computes RMSE (regression) or
 ##   Brier score (binary classification).
 
-source("init.R")
+source("../init.R")
 
 library(batchtools)
 library(data.table)
@@ -27,7 +27,7 @@ regr = loadRegistry("/media/external/ewaldf/TreeFARMS_perf", writeable = TRUE)
 addProblem("perfdata", fun = function(data, job, taskname, learnername, model.no) {
   # Task and validation split
   task = list.tasks[[taskname]]
-  
+
   if (taskname == "bs") {
     task_data = as.data.frame(task$data())
     task_id = task$id
@@ -37,13 +37,13 @@ addProblem("perfdata", fun = function(data, job, taskname, learnername, model.no
     }
     task = as_task_regr(task_data, target = task_target, id = task_id)
   }
-  
+
   task_valid = generateCanonicalDataSplits(task, ratio = 2 / 3, seed = 1)$validation
   truth = task_valid$data(cols = task_valid$target_names)[[1]]
-  
+
   # Predictions for this (task, learner, model)
   pred_obj = preds_TreeFARMS[[taskname]][[model.no]]
-  
+
   list(
     task_type = class(task_valid)[1L],
     properties = task_valid$properties,
@@ -73,7 +73,7 @@ addAlgorithm("eval_perf", fun = function(data, instance, job) {
   } else {
     stop("Unsupported task type for performance evaluation.")
   }
-  
+
   list(test.score = score.val, score = score.type)
 })
 
@@ -136,6 +136,6 @@ res_perf_TreeFARMS = rbindlist(lapply(seq_along(res_list), function(i) {
 
 print(res_perf_TreeFARMS)
 
-save(res_perf_TreeFARMS, file = "data/results_modelperformances_TreeFARMS.RData")
+save(res_perf_TreeFARMS, file = "../data/results_modelperformances_TreeFARMS.RData")
 
 
